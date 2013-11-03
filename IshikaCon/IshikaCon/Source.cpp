@@ -6,32 +6,105 @@ using namespace std;
 #define X 0
 #define Y 1
 #define DIM 2
+#define STROKE_PTS 15000
+#define STROKE_CNT 5000
+#define STAMPS 15000
+#define SPLATS 15000
 
-GLfloat theta = 0.0, trans=0.0, Xmin = -3.0f, Xmax = 3.0f, Ymin = -2.0f, Ymax = 2.0f;
+#define StampDelta 0.01
+#define SplatDelta 0.05
+
+//window def
+#define WIDTH 1200
+#define HEIGHT 800
+#define RATIO 100
+
+GLfloat theta = 0.0, trans=0.0, 
+	Xmin = -1.0f*(WIDTH /RATIO/2), 
+	Xmax =  1.0f*(WIDTH /RATIO/2), 
+	Ymin = -1.0f*(HEIGHT /RATIO/2), 
+	Ymax =  1.0f*(HEIGHT /RATIO/2);
+GLint const xmid = WIDTH /2;
+GLint const ymid = HEIGHT/2;
 GLboolean bRotate = false;
 
 
-GLfloat strokePt[15000][DIM];
-GLint strokeCol[15000];
-GLint currentCol = 0xffffff;
-GLint strokeEndIndex[5000];
+GLfloat strokePt[STROKE_PTS][DIM];
+GLint strokeCol[STROKE_PTS];
+GLint currentCol = 0x0077cc;
+GLint strokeEndIdx[STROKE_CNT];
 int strokeEITop = 1;
-int strokePtIndex = 0;
+int strokePtIdx = 0;
 int lastStampedPt = -1;
 
-GLfloat stampPt[15000][DIM];
-GLint stampColr[15000];
-int stampTopIndex = 0;
+GLfloat stampPt[STAMPS][DIM];
+GLint stampColr[STAMPS];
+int stampTopIdx = 0;
+
+
+struct SplatParamSt{
+	GLfloat  b; //motion bias
+	GLushort a;//age
+	GLubyte  r;//roughness [1~255px]
+	GLubyte  f;//flow percentage [0-100]
+}SplatParam[SPLATS];
+#define N 8
+GLfloat SplatVector[SPLATS][N][DIM];
+GLint SplactColor[SPLATS];
+GLushort WetMap[WIDTH][HEIGHT];
+
+void stamp2splat(int i){
+	GLfloat x = stampPt[i][X];
+	GLfloat y = stampPt[i][Y];	
+
+	SplactColor[i] = stampColr[i];
+	
+	SplatVector[i][0][X] = x+SplatDelta/2;
+	SplatVector[i][0][Y] = y;
+	
+	SplatVector[i][1][X] = x+SplatDelta/3;
+	SplatVector[i][1][Y] = y-SplatDelta/3;
+	
+	SplatVector[i][2][X] = x;
+	SplatVector[i][2][Y] = y-SplatDelta/2;
+	
+	SplatVector[i][3][X] = x-SplatDelta/3;
+	SplatVector[i][3][Y] = y-SplatDelta/3;
+	
+	SplatVector[i][4][X] = x-SplatDelta/2;
+	SplatVector[i][4][Y] = y;
+
+	SplatVector[i][5][X] = x-SplatDelta/3;
+	SplatVector[i][5][Y] = y+SplatDelta/3;
+	
+	SplatVector[i][6][X] = x;
+	SplatVector[i][6][Y] = y+SplatDelta/2;
+	
+	SplatVector[i][7][X] = x+SplatDelta/3;
+	SplatVector[i][7][Y] = y+SplatDelta/3;
+}
+
+
+void canvas()
+{
+	glBegin(GL_QUADS);//Denotes the beginning of a group of vertices that define one or more primitives.
+		glColor3f(1,1,1);
+		glVertex3f(Xmin,Ymin, .02);
+		glVertex3f(Xmin,Ymax, .02);
+		glVertex3f(Xmax,Ymax, .02);
+		glVertex3f(Xmax,Ymin, .02);
+	glEnd();	//Terminates a list of vertices that specify a primitive initiated by glBegin.
+
+}
 
 void regStrokePoint(int x, int y){
 	//std::cout<<x<<","<<y<<std::endl;
-	strokePt[strokePtIndex][0]=(float)(x-300)/100;
-	strokePt[strokePtIndex][1]=(float)(200-y)/100;
-	strokeCol[strokePtIndex] = currentCol;
-	strokePtIndex=(strokePtIndex+1)%15000;
+	strokePt[strokePtIdx][0]=(float)(x-xmid)/100;
+	strokePt[strokePtIdx][1]=(float)(ymid-y)/100;
+	strokeCol[strokePtIdx] = currentCol;
+	strokePtIdx=(strokePtIdx+1)%STROKE_PTS;
 }
 
-#define StampDelta 0.005
 float sqr(float x){return x*x;}
 float ptDistance(float x1, float y1, float x2, float y2){
 	return sqrt((float)(
@@ -39,13 +112,13 @@ float ptDistance(float x1, float y1, float x2, float y2){
 		));
 }
 void strokeToStamps(){
-	int i=strokeEndIndex[strokeEITop-2];
-	int end = strokeEndIndex[strokeEITop-1]-1; 
-	int k = stampTopIndex; 
+	int i=strokeEndIdx[strokeEITop-2];
+	int end = strokeEndIdx[strokeEITop-1]-1; 
+	int k = stampTopIdx; 
 
 	stampPt[k][X] = strokePt[i][X];
 	stampPt[k][Y] = strokePt[i][Y];
-	stampColr[k] = strokeCol[k];
+	stampColr[k] = strokeCol[i];
 
 	while(i<end){
 		//calculate point delta
@@ -91,16 +164,21 @@ void strokeToStamps(){
 		}
 		i++;
 	}
-	stampTopIndex = k+1;
+
+	for(int j = stampTopIdx;j<=k;j++){
+		stamp2splat(j);
+	}
+	stampTopIdx = k+1;
 }
 
-void regStrokeEndIndex(int button, int state, int x, int y){
+void regStrokeEndIdx(int button, int state, int x, int y){
 	if(button == GLUT_LEFT_BUTTON && state == GLUT_UP){
-		strokeEndIndex[strokeEITop++] = strokePtIndex;
-		strokeEndIndex[strokeEITop] = 99999;
+		strokeEndIdx[strokeEITop++] = strokePtIdx;
+		strokeEndIdx[strokeEITop] = STROKE_CNT+1;
 
 		strokeToStamps();
-		lastStampedPt = strokePtIndex; 
+		strokeEITop = 1; strokePtIdx=0;
+		lastStampedPt = strokePtIdx; 
 	}
 	
 	if(button == GLUT_RIGHT_BUTTON && state == GLUT_DOWN){
@@ -108,20 +186,31 @@ void regStrokeEndIndex(int button, int state, int x, int y){
 	}
 }
 
-void drawPoint(GLfloat x, GLfloat y, GLfloat red=0.5f, GLfloat green=0.5f, GLfloat blue=0.5f, GLfloat pointSize=5.0f){
+void drawPoint(GLfloat x, GLfloat y, GLfloat red=0.5f, GLfloat green=0.5f, GLfloat blue=0.5f, GLfloat pointSize=1.0f){
 	glPointSize(pointSize);
 	glBegin(GL_POINTS);
 		glColor3f(red, green, blue);
-		glVertex2f(x,y);
+		glVertex3f(x,y,.1);
 	glEnd();
 }
 
 void drawPoints(){
-	for(int i=0;i<strokePtIndex;i++){
+	for(int i=0;i<strokePtIdx;i++){
 		drawPoint(strokePt[i][0],strokePt[i][1]);
 	}
 }
 
+void drawSplat(int i){
+	GLint c = SplactColor[i];
+	glColor3f((GLfloat)(c/0x010000)/256,
+		(GLfloat)((c/0x000100)%0x100)/256,
+		(GLfloat)(c%0x100)/256
+		);
+	glBegin(GL_POLYGON);
+	for(int j=0;j<N;j++)
+		glVertex3f(SplatVector[i][j][X],SplatVector[i][j][Y],.1);
+	glEnd();
+}
 
 void drawStamp(int i){
 	GLint c = stampColr[i];
@@ -139,19 +228,19 @@ GLUnurbsObj *cbz = gluNewNurbsRenderer();
 void drawSpline(int i){	
 	cntrlPnts [0][0] = strokePt[i-1][0];
 	cntrlPnts [0][1] = strokePt[i-1][1];
-	cntrlPnts [0][2] = 0.0;
+	cntrlPnts [0][2] = 0.1;
 
 	cntrlPnts [1][0] = strokePt[i][0];
 	cntrlPnts [1][1] = strokePt[i][1];
-	cntrlPnts [1][2] = 0.0;
+	cntrlPnts [1][2] = 0.1;
 
 	cntrlPnts [2][0] = strokePt[i+1][0];
 	cntrlPnts [2][1] = strokePt[i+1][1];
-	cntrlPnts [2][2] = 0.0;
+	cntrlPnts [2][2] = 0.1;
 
 	cntrlPnts [3][0] = strokePt[i+2][0];
 	cntrlPnts [3][1] = strokePt[i+2][1];
-	cntrlPnts [3][2] = 0.0;
+	cntrlPnts [3][2] = 0.1;
 
 	glPointSize(5.0f);
 	GLint c = strokeCol[i];
@@ -166,7 +255,7 @@ void drawSpline(int i){
 
 //void drawSplines(){
 //	for(int m=0;m<=strokeEITop;m++){
-//		for(int i=strokeEndIndex[m]+1; i+2<strokeEndIndex[m+1] && i+2<strokePtIndex ;i+=3){
+//		for(int i=strokeEndIdx[m]+1; i+2<strokeEndIdx[m+1] && i+2<strokePtIdx ;i+=3){
 //			gluBeginCurve(cbz);
 //				drawSpline(i);
 //			gluEndCurve(cbz);
@@ -175,7 +264,7 @@ void drawSpline(int i){
 //}
 
 void drawSplines(){
-	for(int i=lastStampedPt+2; i+2<strokePtIndex ;i+=3){
+	for(int i=lastStampedPt+2; i+2<strokePtIdx ;i+=3){
 		gluBeginCurve(cbz);
 			drawSpline(i);
 		gluEndCurve(cbz);
@@ -183,8 +272,14 @@ void drawSplines(){
 }
 
 void drawStamps(){
-	for(int i=0;i<stampTopIndex;i++){
+	for(int i=0;i<stampTopIdx;i++){
 		drawStamp(i);
+	}
+}
+
+void drawSplats(){
+	for(int i=stampTopIdx-1;i>=0;i--){
+		drawSplat(i);
 	}
 }
 
@@ -210,7 +305,7 @@ void drawScene(void)
 		//This function is most often used to save the current transformation matrix 
 		//so that it can be restored later with a call to glPopMatrix();
 	
-		glViewport( 0, 0,600 ,400 );
+	glViewport( 0, 0, WIDTH ,HEIGHT);
 		//This function sets the region within a window that is used 
 		//for mapping the clipping volume coordinates to physical 
 		//window coordinates.
@@ -221,11 +316,10 @@ void drawScene(void)
 
 		glRotatef(theta, 0, 0, 1);//Rotates the current matrix by a rotation matrix.
 		
-		//triangle();
-
-		//drawSplats();
+		canvas();
 		drawSplines();
-		drawStamps();
+		//drawStamps();
+		drawSplats();
 	glPopMatrix();//Pops the current matrix off the matrix stack.
 
 	
@@ -305,17 +399,17 @@ void myKeyboardFunc( unsigned char key, int x, int y )
 	{
 		case 27: exit(1);
 
-		/*case 'R':
+		case '.':
 			bRotate = !bRotate;	
 			break;
-		case 'L':
+		case '>':
 			trans +=0.2;
 			break;
-		case 'J':
-			trans -=0.2;*/
+		case '<':
+			trans -=0.2;
 			break;
 		case '0':
-			strokeEITop = 1; strokePtIndex=0; stampTopIndex = 0;
+			strokeEITop = 1; strokePtIdx=0; stampTopIdx = 0;
 			break;
 
 			//colors
@@ -369,6 +463,13 @@ void animate()
 
 int main (int argc, char **argv)
 {
+	/*cout<<"int"<<sizeof(int)<<endl;
+	cout<<"GLint"<<sizeof(GLint)<<endl;
+	cout<<"char"<<sizeof(char)<<endl;
+	cout<<"short"<<sizeof(short)<<endl;
+	cout<<"SplatParamSt"<<sizeof(SplatParamSt)<<endl;
+	cout<<""<<sizeof(int)<<endl;
+	cout<<""<<sizeof(int)<<endl;*/
 	glutInit(&argc, argv);
 	//This initializes the GLUT library, passing command line parameters 
 	//(this has an effect mostly on Linux/Unix) 
@@ -377,11 +478,9 @@ int main (int argc, char **argv)
 	//a RGB display (GLUT_RGB) along with double-buffering (GLUT_DOUBLE), 
 	//so the screen won't flicker when we redraw it. 
 	//GLUT_DEPTH Specifies a 32-bit depth buffer
-
-
  
-	glutInitWindowPosition(100,100);
-	glutInitWindowSize(600,400);
+	//glutInitWindowPosition(100,100);
+	glutInitWindowSize(WIDTH,HEIGHT);
 	//Initial window size - width, height 
 	glutCreateWindow("Ishika");
 	//Creates and sets the window title 
@@ -390,7 +489,7 @@ int main (int argc, char **argv)
 	glutKeyboardFunc(myKeyboardFunc);
 		//Sets the keyboard callback function for the current window.
 	glutMotionFunc(regStrokePoint);
-	glutMouseFunc(regStrokeEndIndex);
+	glutMouseFunc(regStrokeEndIdx);
 
 	glutReshapeFunc(resizeWindow);
 	glutDisplayFunc(drawScene);
