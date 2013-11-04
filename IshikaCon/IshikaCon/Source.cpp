@@ -18,6 +18,7 @@ using namespace std;
 #define WIDTH 1200
 #define HEIGHT 800
 #define RATIO 100
+#define FACTX 1000
 
 GLfloat theta = 0.0, trans=0.0, 
 	Xmin = -1.0f*(WIDTH /RATIO/2), 
@@ -43,13 +44,14 @@ int stampTopIdx = 0;
 
 
 struct SplatParamSt{
-	GLfloat  b; //motion bias
+	GLushort bx; //motion bias x
+	GLushort by; //motion bias y
 	GLushort a;//age
 	GLubyte  r;//roughness [1~255px]
 	GLubyte  f;//flow percentage [0-100]
 }SplatParam[SPLATS];
 #define N 8
-GLfloat SplatVector[SPLATS][N][DIM];
+GLfloat SplatVertex[SPLATS][N][DIM];
 GLint SplactColor[SPLATS];
 GLushort WetMap[WIDTH][HEIGHT];
 
@@ -59,48 +61,72 @@ void stamp2splat(int i){
 
 	SplactColor[i] = stampColr[i];
 	
-	SplatVector[i][0][X] = x+SplatDelta/2;
-	SplatVector[i][0][Y] = y;
+	SplatVertex[i][0][X] = x+SplatDelta/2;
+	SplatVertex[i][0][Y] = y;
 	
-	SplatVector[i][1][X] = x+SplatDelta/3;
-	SplatVector[i][1][Y] = y-SplatDelta/3;
+	SplatVertex[i][1][X] = x+SplatDelta/3;
+	SplatVertex[i][1][Y] = y-SplatDelta/3;
 	
-	SplatVector[i][2][X] = x;
-	SplatVector[i][2][Y] = y-SplatDelta/2;
+	SplatVertex[i][2][X] = x;
+	SplatVertex[i][2][Y] = y-SplatDelta/2;
 	
-	SplatVector[i][3][X] = x-SplatDelta/3;
-	SplatVector[i][3][Y] = y-SplatDelta/3;
+	SplatVertex[i][3][X] = x-SplatDelta/3;
+	SplatVertex[i][3][Y] = y-SplatDelta/3;
 	
-	SplatVector[i][4][X] = x-SplatDelta/2;
-	SplatVector[i][4][Y] = y;
+	SplatVertex[i][4][X] = x-SplatDelta/2;
+	SplatVertex[i][4][Y] = y;
 
-	SplatVector[i][5][X] = x-SplatDelta/3;
-	SplatVector[i][5][Y] = y+SplatDelta/3;
+	SplatVertex[i][5][X] = x-SplatDelta/3;
+	SplatVertex[i][5][Y] = y+SplatDelta/3;
 	
-	SplatVector[i][6][X] = x;
-	SplatVector[i][6][Y] = y+SplatDelta/2;
+	SplatVertex[i][6][X] = x;
+	SplatVertex[i][6][Y] = y+SplatDelta/2;
 	
-	SplatVector[i][7][X] = x+SplatDelta/3;
-	SplatVector[i][7][Y] = y+SplatDelta/3;
+	SplatVertex[i][7][X] = x+SplatDelta/3;
+	SplatVertex[i][7][Y] = y+SplatDelta/3;
+
+	SplatParam[i].a=256;
+	/*if(i+1<stampTopIdx){
+		SplatParam[i].bx = FACTX*(stampPt[i+1][X]-x);
+		SplatParam[i].by = FACTX*(stampPt[i+1][Y]-y);
+	}*/
+	SplatParam[i].bx = 0;
+	SplatParam[i].by = 0; 
+	SplatParam[i].f = 100;
+	SplatParam[i].r = 5;
+
+	int ix = x*RATIO+xmid;
+	int iy = ymid-y*RATIO;
+
+	WetMap[ix][iy]=200;
 }
 
+GLfloat V[N][DIM]={ { 1, 0},//0
+					{ 1,-1},//1
+					{ 0,-1},//2
+					{-1,-1},//3
+					{-1, 0},//4
+					{-1, 1},//5
+					{ 0, 1},//6
+					{ 1, 1}//7
+				};
 
 void canvas()
 {
 	glBegin(GL_QUADS);//Denotes the beginning of a group of vertices that define one or more primitives.
 		glColor3f(1,1,1);
-		glVertex3f(Xmin,Ymin, .02);
-		glVertex3f(Xmin,Ymax, .02);
-		glVertex3f(Xmax,Ymax, .02);
-		glVertex3f(Xmax,Ymin, .02);
+		glVertex3f(Xmin,Ymin, .0);
+		glVertex3f(Xmin,Ymax, .0);
+		glVertex3f(Xmax,Ymax, .0);
+		glVertex3f(Xmax,Ymin, .0);
 	glEnd();	//Terminates a list of vertices that specify a primitive initiated by glBegin.
 
 }
 
 void regStrokePoint(int x, int y){
 	//std::cout<<x<<","<<y<<std::endl;
-	strokePt[strokePtIdx][0]=(float)(x-xmid)/100;
-	strokePt[strokePtIdx][1]=(float)(ymid-y)/100;
+	strokePt[strokePtIdx][0]=(float)(x-xmid)/RATIO;
+	strokePt[strokePtIdx][1]=(float)(ymid-y)/RATIO;
 	strokeCol[strokePtIdx] = currentCol;
 	strokePtIdx=(strokePtIdx+1)%STROKE_PTS;
 }
@@ -199,17 +225,69 @@ void drawPoints(){
 		drawPoint(strokePt[i][0],strokePt[i][1]);
 	}
 }
+float alpha = 0.03;
+
+void advect(int i){
+	SplatParam[i].a--;
+	if(SplatParam[i].a<=0) return;
+
+	float dx = (1-alpha)*SplatParam[i].bx;
+	float dy = (1-alpha)*SplatParam[i].by;
+
+	int u = abs(rand());
+	u = u%SplatParam[i].r + 1;
+	float U = u;
+	//float U = (1*u)/RATIO;
+		
+	for(int j=0;j<N;j++){
+		dx = alpha * (1/u) * V[j][X];
+		dy = alpha * (1/u) * V[j][Y];
+
+		float x = SplatVertex[i][j][X];
+		float y = SplatVertex[i][j][Y];
+		
+		u = abs(rand());
+		u = u%SplatParam[i].r+1;
+		
+		x = x + ((float)(SplatParam[i].f)/100)*dx + 0 + u/RATIO;
+		y = y + ((float)(SplatParam[i].f)/100)*dy + 0 + u/RATIO;
+		
+		int ix = x*RATIO+xmid;
+		int iy = ymid-y*RATIO;
+
+		if(WetMap[ix][iy]>0) {
+			SplatVertex[i][j][X] = x;
+			SplatVertex[i][j][Y] = y;
+		}
+	}
+}
 
 void drawSplat(int i){
+		//glEnable(GL_BLEND);
+		//glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	GLint c = SplactColor[i];
-	glColor3f((GLfloat)(c/0x010000)/256,
+	glColor4f((GLfloat)(c/0x010000)/256,
 		(GLfloat)((c/0x000100)%0x100)/256,
-		(GLfloat)(c%0x100)/256
+		(GLfloat)(c%0x100)/256,
+		.35
 		);
+	GLfloat z = ((float)i)/SPLATS;
+	//cout<<z<<endl;
 	glBegin(GL_POLYGON);
 	for(int j=0;j<N;j++)
-		glVertex3f(SplatVector[i][j][X],SplatVector[i][j][Y],.1);
+		glVertex3f(SplatVertex[i][j][X],SplatVertex[i][j][Y],.1*z);
 	glEnd();
+
+	advect(i);
+}
+
+void WetMapUpdate(){
+	for(int x=0;x<WIDTH;x++){
+		for(int y=0;y<HEIGHT;y++){
+			int wet = WetMap[x][y];
+			if(wet>0)WetMap[x][y]=wet-1;
+		}
+	}
 }
 
 void drawStamp(int i){
@@ -278,7 +356,8 @@ void drawStamps(){
 }
 
 void drawSplats(){
-	for(int i=stampTopIdx-1;i>=0;i--){
+	for(int i=0;i<stampTopIdx;i++){
+	//for(int i=stampTopIdx-1;i>=0;i--){
 		drawSplat(i);
 	}
 }
@@ -316,10 +395,13 @@ void drawScene(void)
 
 		glRotatef(theta, 0, 0, 1);//Rotates the current matrix by a rotation matrix.
 		
+		glEnable(GL_BLEND);
+		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 		canvas();
 		drawSplines();
 		//drawStamps();
 		drawSplats();
+		WetMapUpdate();
 	glPopMatrix();//Pops the current matrix off the matrix stack.
 
 	
