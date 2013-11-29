@@ -1,6 +1,6 @@
 #include "IshikaStdInc.h"
 #include "Util.h"
-#include "Splat.cpp"
+#include "Splat.h"
 
 using namespace std;
 
@@ -31,6 +31,8 @@ struct SplatParamSt{
 GLfloat SplatVertex[SPLATS][N][DIM];
 GLint SplactColor[SPLATS];
 GLushort WetMap[WIDTH][HEIGHT];
+
+ishika::Splat Splats[SPLATS];
 
 void stamp2splat(int i){
     GLfloat x = stampPt[i][X];
@@ -80,6 +82,8 @@ void stamp2splat(int i){
     SplatParam[i].f = 100;
     SplatParam[i].r = 5;
     SplatParam[i].o = 100;
+
+    Splats[i].init(SplatDelta, x, y, c, 0, 0, 50, 5, 100, 100);
 
     int ix = x*RATIO+xmid;
     int iy = ymid-y*RATIO;
@@ -357,7 +361,9 @@ void drawStamps(){
 void drawSplats(){
     for(int i=0;i<stampTopIdx;i++){
     //for(int i=stampTopIdx-1;i>=0;i--){
-        drawSplat(i);
+        //drawSplat(i);
+        Splats[i].draw(i);
+        Splats[i].advect(WetMap);
     }
 }
 

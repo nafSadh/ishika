@@ -24,7 +24,9 @@ namespace ishika{
 		GLubyte  o;//opacity
 
 	public:
-		void advect(const GLushort** wetmap);
+		void init(GLfloat splatSize, GLfloat pos_x, GLfloat pos_y, GLint color, GLushort bias_x, GLushort bias_y, GLushort age, GLubyte roughness, GLubyte flow_pct, GLubyte opacity);
+
+		void advect(const GLushort wetmap[][HEIGHT]);
 		void draw(int i);
 	};
 
