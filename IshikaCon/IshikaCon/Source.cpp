@@ -4,11 +4,8 @@
 
 using namespace std;
 
-
-
 GLfloat strokePt[STROKE_PTS][DIM];
 GLint strokeCol[STROKE_PTS];
-GLint currentCol = 0x0077cc;
 GLint strokeEndIdx[STROKE_CNT];
 int strokeEITop = 1;
 int strokePtIdx = 0;
@@ -20,10 +17,21 @@ int stampTopIdx = 0;
 
 
 
-GLushort WetMap[WIDTH][HEIGHT];
 
-ishika::Splat Splats[SPLATS];
-GLint splatTopIndex = 0;
+namespace ishika{
+
+	namespace Current{
+		GLint BrushPx = 5;
+		ishika::BrushType BrushType = BrushType::Simple;
+		GLint Color = 0x0077cc;
+	}
+
+	GLushort WetMap[WIDTH][HEIGHT];
+
+	vector<Splat> Splats;
+	GLint splatTopIndex = 0;
+}
+using namespace ishika;
 
 void stamp2splat(int i){
 	GLfloat x = stampPt[i][X];
@@ -31,7 +39,9 @@ void stamp2splat(int i){
 
 	int c = stampColr[i];
 
-	Splats[i].init(SplatDelta, x, y, c, 0, 0, 50, 5, 100, 50);
+	ishika::Splat thisSplat;
+	thisSplat.init(5, x, y, c, 0, 0, 50, 5, 100, 50);
+	Splats.push_back(thisSplat);
 
 	int ix = x*RATIO+xmid;
 	int iy = ymid-y*RATIO;
@@ -63,7 +73,7 @@ void regStrokePoint(int x, int y){
 	//std::cout<<x<<","<<y<<std::endl;
 	strokePt[strokePtIdx][0]=(float)(x-xmid)/RATIO;
 	strokePt[strokePtIdx][1]=(float)(ymid-y)/RATIO;
-	strokeCol[strokePtIdx] = currentCol;
+	strokeCol[strokePtIdx] = Current::Color;
 	strokePtIdx=(strokePtIdx+1)%STROKE_PTS;
 }
 
@@ -241,11 +251,11 @@ void drawSpline(int i){
 
 void drawSplines(){
 	try{
-	for(int i=lastStampedPt+2; i+2<strokePtIdx ;i+=3){
-		gluBeginCurve(cbz);
-		drawSpline(i);
-		gluEndCurve(cbz);
-	}
+		for(int i=lastStampedPt+2; i+2<strokePtIdx ;i+=3){
+			gluBeginCurve(cbz);
+			drawSpline(i);
+			gluEndCurve(cbz);
+		}
 	}catch(exception e){}
 }
 
@@ -255,12 +265,20 @@ void drawStamps(){
 	}
 }
 
+//void drawSplats(){
+//	for(int i=0;i<stampTopIdx;i++){
+//		//for(int i=stampTopIdx-1;i>=0;i--){
+//		//drawSplat(i);
+//		Splats[i].draw(i);
+//		Splats[i].advect(WetMap);
+//	}
+//}
+
 void drawSplats(){
-	for(int i=0;i<stampTopIdx;i++){
-		//for(int i=stampTopIdx-1;i>=0;i--){
-		//drawSplat(i);
-		Splats[i].draw(i);
-		Splats[i].advect(WetMap);
+	int i=0;
+	for(vector<Splat>::iterator splatIt = Splats.begin(); splatIt!=Splats.end(); ++splatIt, i++){
+		(*splatIt).draw(i);
+		(*splatIt).advect(WetMap);
 	}
 }
 
@@ -399,45 +417,45 @@ void myKeyboardFunc( unsigned char key, int x, int y )
 		break;
 
 		//colors
-	case 'w': currentCol = 0xffffff; break;//white
-	case 'k': currentCol = 0x000000; break;//black
-	case 'a': currentCol = 0x808080; break;//ash
-	case 'A': currentCol = 0xb0b0b0; break;//ash
+	case 'w': Current::Color = 0xffffff; break;//white
+	case 'k': Current::Color = 0x000000; break;//black
+	case 'a': Current::Color = 0x808080; break;//ash
+	case 'A': Current::Color = 0xb0b0b0; break;//ash
 
-	case 'e': currentCol = 0xf0f0d0; break;//eggshell
-	case 'E': currentCol = 0xf0f0c0; break;//eggshell
-	case 'F': currentCol = 0xE5AA70; break;//fawns
+	case 'e': Current::Color  = 0xf0f0d0; break;//eggshell
+	case 'E': Current::Color  = 0xf0f0c0; break;//eggshell
+	case 'F': Current::Color  = 0xE5AA70; break;//fawns
 
-	case 'r': currentCol = 0xff0000; break;//red
-	case 'R': currentCol = 0x8b0000; break;//dark red
-	case 'p': currentCol = 0xFF8080; break;
-	case 'P': currentCol = 0xFFc0c0; break;
+	case 'r': Current::Color  = 0xff0000; break;//red
+	case 'R': Current::Color  = 0x8b0000; break;//dark red
+	case 'p': Current::Color  = 0xFF8080; break;
+	case 'P': Current::Color  = 0xFFc0c0; break;
 
-	case 'g': currentCol = 0x00ff00; break;//green
-	case 'G': currentCol = 0x008000; break;//dark gr
+	case 'g': Current::Color  = 0x00ff00; break;//green
+	case 'G': Current::Color  = 0x008000; break;//dark gr
 
-	case 'b': currentCol = 0x0000ff; break;//blue
-	case 'B': currentCol = 0x000080; break;//dark bl
-	case 's': currentCol = 0x80c0f0; break;//sky bl
-	case 'S': currentCol = 0xb0e0ff; break;//light sky bl
-
-
-	case 'v': currentCol = 0xee82ee; break;//violet
-	case 'm': currentCol = 0xff00ff; break;//magenta
-	case 'z': currentCol = 0x8000ff; break;//z-blue
-
-	case 'y': currentCol = 0xffFF00; break;//yellow
-	case 'o': currentCol = 0xff8c00; break;//orange
-	case 'O': currentCol = 0xff4500; break;//OrangeRed
-	case 'l': currentCol = 0x80ff00; break;//yellow green
+	case 'b': Current::Color  = 0x0000ff; break;//blue
+	case 'B': Current::Color  = 0x000080; break;//dark bl
+	case 's': Current::Color  = 0x80c0f0; break;//sky bl
+	case 'S': Current::Color  = 0xb0e0ff; break;//light sky bl
 
 
-	case 'c': currentCol = 0x00ffFF; break;//cyan
-	case 'f': currentCol = 0x00FF80; break;//floruscent green
-	case 't': currentCol = 0x0080ff; break;//teal
+	case 'v': Current::Color  = 0xee82ee; break;//violet
+	case 'm': Current::Color  = 0xff00ff; break;//magenta
+	case 'z': Current::Color  = 0x8000ff; break;//z-blue
 
-	case 'd': currentCol = 0x561010; break;//dusk red
-	case 'D': currentCol = 0x210808; break;//dusk red
+	case 'y': Current::Color  = 0xffFF00; break;//yellow
+	case 'o': Current::Color  = 0xff8c00; break;//orange
+	case 'O': Current::Color  = 0xff4500; break;//OrangeRed
+	case 'l': Current::Color  = 0x80ff00; break;//yellow green
+
+
+	case 'c': Current::Color  = 0x00ffFF; break;//cyan
+	case 'f': Current::Color  = 0x00FF80; break;//floruscent green
+	case 't': Current::Color  = 0x0080ff; break;//teal
+
+	case 'd': Current::Color  = 0x561010; break;//dusk red
+	case 'D': Current::Color  = 0x210808; break;//dusk red
 
 
 	}
