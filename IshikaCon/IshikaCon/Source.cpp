@@ -1,6 +1,7 @@
 #include "IshikaStdInc.h"
 #include "Util.h"
 #include "Splat.h"
+#include "Stroke.h"
 
 using namespace std;
 
@@ -29,6 +30,7 @@ namespace ishika{
 	GLushort WetMap[WIDTH][HEIGHT];
 
 	vector<Splat> Splats;
+	list<Stroke> Strokes;
 	GLint splatTopIndex = 0;
 }
 using namespace ishika;
@@ -75,6 +77,14 @@ void regStrokePoint(int x, int y){
 	strokePt[strokePtIdx][1]=(float)(ymid-y)/RATIO;
 	strokeCol[strokePtIdx] = Current::Color;
 	strokePtIdx=(strokePtIdx+1)%STROKE_PTS;
+
+	//ishika 
+	Stroke newStroke = Stroke( 
+		(float)(x-xmid)/RATIO,
+		(float)(ymid-y)/RATIO,
+		Current::Color,
+		Current::BrushPx,
+		Current::BrushType);
 }
 
 

@@ -12,8 +12,8 @@ namespace ishika{
 	};
 	const float alpha = 0.33;
 
-	void Splat::init(GLfloat splatSize, GLfloat pos_x, GLfloat pos_y, GLint color, GLushort bias_x, GLushort bias_y, GLushort age, GLubyte roughness, GLubyte flow_pct, GLubyte opacity){
-		this->splatSize = splatSize;
+	void Splat::init(GLint splatPx, GLfloat pos_x, GLfloat pos_y, GLint color, GLushort bias_x, GLushort bias_y, GLushort age, GLubyte roughness, GLubyte flow_pct, GLubyte opacity){
+		this->splatSize = splatPx*(1.0/RATIO);
 		//copy location co-ordinates			
 		x[0] = pos_x+splatSize/2;
 		y[0] = pos_y;

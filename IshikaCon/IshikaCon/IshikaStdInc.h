@@ -4,6 +4,10 @@
 
 #include <iostream>
 #include <gl/glut.h>
+#include <vector>
+#include <queue>
+#include <list>
+
 
 #define X 0
 #define Y 1
@@ -15,6 +19,7 @@
 
 #define StampDelta 0.01
 #define SplatDelta 0.05
+#define SplatSize 5
 
 //window def
 #define WIDTH 1200
