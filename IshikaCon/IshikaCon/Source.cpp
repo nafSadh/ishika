@@ -86,17 +86,19 @@ void stamp2splat(Stamp smp){
 
 	ishika::Splat thisSplat;
 	//thisSplat.init(15, x, y, c, 0, 0, 5, 50, 100, 50);
-	thisSplat.init(smp.strokePx,smp.x, smp.y, smp.color, 0, 0, 50, smp.strokePx,100,50);
+	thisSplat.init(smp.strokePx, smp.x, smp.y, smp.color, 
+		smp.bx, smp.by, 50, smp.strokePx,100,50);
 	Splats.push_back(thisSplat);
 
 	int ix = x*RATIO+xmid;
 	int iy = ymid-y*RATIO;
 
-	int kx = -(smp.strokePx+1), ky = -(smp.strokePx+1);
+	int kx = -.5*(smp.strokePx+1), ky = -.5*(smp.strokePx+1);
+	int kxLim = -kx, kyLim = -ky;
 	if(ix+kx<0) kx = 0-ix;
 	if(iy+ky<0) ky = 0-iy;
-	while( kx< smp.strokePx && (ix+kx)<WIDTH){
-		while( ky< smp.strokePx && (iy+ky)<HEIGHT){
+	while( kx< kxLim && (ix+kx)<WIDTH){
+		while( ky< kyLim && (iy+ky)<HEIGHT){
 			WetMap[ix+kx][iy+ky]=90;
 			ky++;
 		}kx++;
@@ -166,8 +168,8 @@ void CommitStrokeToStamps(int C){
 	while (!Stamps.empty())
 	{
 		Stamp smp = Stamps.front();
-		stamp2splat(smp);
 		Stamps.pop();
+		stamp2splat(smp);
 	}
 }
 
@@ -184,6 +186,8 @@ void canvas()
 
 }
 
+
+int x_1,x_2,y_1,y_2;
 void regStrokePoint(int x, int y){
 	//std::cout<<x<<","<<y<<std::endl;
 	Stroke newStroke = Stroke( 
@@ -191,9 +195,20 @@ void regStrokePoint(int x, int y){
 		(float)(ymid-y)/RATIO,
 		Current::Color,
 		Current::BrushPx,
-		Current::BrushType);
+		Current::BrushType);	
+	
+	//giving bias to prev
+	if(!Strokes.empty()){
+		(Strokes.back()).bx = x-x_2;
+		(Strokes.back()).by = y-y_2;
+	}else{ x_1 =x; y_1=y;	}
+	
+	//adding new onw
 	Strokes.push_back(newStroke);
 	Current::StrokePointCount++;
+	//temp storing for bias
+	x_2 = x_1; 	x_1 = x;
+	y_2 = y_1;  y_1 = y;
 }
 
 void regStrokeEndIdx(int button, int state, int x, int y){
@@ -207,7 +222,7 @@ void regStrokeEndIdx(int button, int state, int x, int y){
 	}
 }
 
-void drawPoint(GLfloat x, GLfloat y, GLfloat red=0.5f, GLfloat green=0.5f, GLfloat blue=0.5f, GLfloat pointSize=1.0f, GLfloat z=.1){
+void drawPoint(GLfloat x, GLfloat y, GLfloat red=0.5f, GLfloat green=0.5f, GLfloat blue=0.5f, GLfloat pointSize=1.0f, GLfloat z=.0001){
 	glPointSize(pointSize);
 	glBegin(GL_POINTS);
 	glColor3f(red, green, blue);
@@ -216,16 +231,17 @@ void drawPoint(GLfloat x, GLfloat y, GLfloat red=0.5f, GLfloat green=0.5f, GLflo
 }
 
 void WetMapUpdate(){
+	drawPoint(1,1);
 	for(int x=0;x<WIDTH;x++){
 		for(int y=0;y<HEIGHT;y++){
 			int wet = WetMap[x][y];
 			if(wet>0){
 				WetMap[x][y]=wet-1;
-				/*drawPoint(
+				drawPoint(
 				(float)(x-xmid)/RATIO,
 				(float)(ymid-y)/RATIO,
-				0.9,0.9, 0.9, 
-				1.0,0);*/
+				0.95,0.95, 0.97, 
+				1.0);
 			}
 			if(x>0 && y>0 && x+1<WIDTH && y+1<HEIGHT){
 				if(WetMap[x][y]<7){

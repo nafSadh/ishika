@@ -67,8 +67,8 @@ namespace ishika{
 			u = getRandNZ(-r,r);
 			U = ((float)u)/RATIO;
 			
-			dx = (1-alpha)*bx + alpha * (1/u) * V[j][X];
-			dy = (1-alpha)*by + alpha * (1/u) * V[j][Y];
+			dx = (1-alpha)*(bx/RATIO) + alpha * (1/u) * V[j][X];
+			dy = (1-alpha)*(by/RATIO) + alpha * (1/u) * V[j][Y];
 
 			//u = getrand(-r,r,x[j]*RATIO,y[j]*RATIO);
 			//U = (float)(getrand(-r,r,x[j]*RATIO,y[j]*RATIO))/RATIO;
@@ -88,9 +88,10 @@ namespace ishika{
 			if(distNext>splatSize){
 				distNext = distNext;
 			}
-			if(wetmap[ix][iy]>0
-				&& distPrev<splatSize*2
-				&& distNext<splatSize*2) {
+			if(0<=ix && ix<WIDTH && 0<=iy && iy<HEIGHT &&
+				wetmap[ix][iy]>0
+				&& distPrev<splatSize*4
+				&& distNext<splatSize*4) {
 				x[j] = _x;
 				y[j] = _y;
 				//if(r>0) o--; else o++;

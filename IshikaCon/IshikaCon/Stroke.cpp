@@ -17,10 +17,13 @@ namespace ishika{
 		this->color = color;
 		this->strokePx = strokePx;
 		this->brushType = brush;
+		bx=by=0;
 	}
 
 	void Stamp::copyStroke(Stroke sk){
 		init(sk.x, sk.y,sk.color,sk.strokePx,sk.brushType);
+		bx=sk.bx;
+		by=sk.by;
 	}
 
 }

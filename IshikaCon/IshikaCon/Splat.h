@@ -14,8 +14,8 @@ namespace ishika{
 		GLint color;
 		GLfloat splatSize;
 		//params
-		GLushort bx; //motion bias x
-		GLushort by; //motion bias y
+		GLshort bx; //motion bias x
+		GLshort by; //motion bias y
 		GLushort a;//age
 		GLubyte  r;//roughness [1~255px]
 		GLubyte  f;//flow percentage [0-100]
