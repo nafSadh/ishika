@@ -54,7 +54,7 @@ void colorPicker(int s=2){
 namespace ishika{ 
 
 	namespace Current{
-		GLint BrushPx = 5;
+		GLint BrushPx = 25;
 		ishika::BrushType BrushType = BrushType::Simple;
 		GLint Color = 0x0077cc;
 		int StrokePointCount = 0;
@@ -65,46 +65,134 @@ namespace ishika{
 	vector<Splat> Splats;
 	list<Stroke> Strokes;
 	queue<Stamp> Stamps;
-	GLint splatTopIndex = 0;
 }
 using namespace ishika;
 
 
-void storeScreen(){
-	glReadPixels(0, 0, WIDTH, HEIGHT,GL_RGBA,GL_UNSIGNED_BYTE, &rgbdata); 
-	int save_result = SOIL_save_image(
-		"image_patch1.tga",
-		SOIL_SAVE_TYPE_TGA,
-		WIDTH, HEIGHT, 4,
-		//rgbdata.data()
-		rgbdata
-		);
-	rgbdata[0] = SOIL_load_OGL_texture("image_patch1.tga",SOIL_LOAD_AUTO,SOIL_CREATE_NEW_ID,SOIL_FLAG_INVERT_Y);
+void drawPoint(GLfloat x, GLfloat y, GLfloat red=0.5f, GLfloat green=0.5f, GLfloat blue=0.5f, GLfloat pointSize=1.0f, GLfloat z=.0001){
+	glPointSize(pointSize);
+	glBegin(GL_POINTS);
+	glColor3f(red, green, blue);
+	glVertex3f(x,y,z);
+	glEnd();
+}
+int x_1,x_2,y_1,y_2;
 
+void DrawWetMap(){
+	for(int x=0;x<WIDTH;x++){
+		for(int y=0;y<HEIGHT;y++){
+			int wet = WetMap[x][y];
+			if(wet>0){
+				drawPoint(
+					(float)(x-xmid)/RATIO,
+					(float)(ymid-y)/RATIO,
+					0.93,0.93, 0.95, 
+					.1,1.00000001);
+			}
+		}
+	}
+}
+void WetMapUpdate(){
+	for(int x=0;x<WIDTH;x++){
+		for(int y=0;y<HEIGHT;y++){
+			int wet = WetMap[x][y];
+			if(wet>0){
+				WetMap[x][y]=wet-1;
+			}
+			if(x>0 && y>0 && x+1<WIDTH && y+1<HEIGHT){
+				if(WetMap[x][y]<7){
+					int wetNbor = 0;
+					if(WetMap[x][y+1]>7) wetNbor++;
+					if(WetMap[x+1][y]>7) wetNbor++;
+					if(WetMap[x][y-1]>7) wetNbor++;
+					if(WetMap[x-1][y]>7) wetNbor++;
+					if (wetNbor>1){
+						WetMap[x][y] += WetMap[x][y+1]/10;
+						WetMap[x][y] += WetMap[x+1][y]/10;
+						WetMap[x][y] += WetMap[x][y-1]/10;
+						WetMap[x][y] += WetMap[x-1][y]/10; 
+					}
+				}
+			}
+		}
+	}
 }
 
 void stamp2splat(Stamp smp){
 	GLfloat x = smp.x;
 	GLfloat y = smp.y;	
 
-	ishika::Splat thisSplat;
-	//thisSplat.init(15, x, y, c, 0, 0, 5, 50, 100, 50);
-	thisSplat.init(smp.strokePx, smp.x, smp.y, smp.color, 
-		smp.bx, smp.by, 50, smp.strokePx,100,50);
-	Splats.push_back(thisSplat);
-
 	int ix = x*RATIO+xmid;
 	int iy = ymid-y*RATIO;
 
-	int kx = -.5*(smp.strokePx+1), ky = -.5*(smp.strokePx+1);
-	int kxLim = -2*kx, kyLim = -2*ky;
+	//thisSplat.init(15, x, y, c, 0, 0, 5, 50, 100, 50);
+
+	float WRR = -0.50;
+	int wetLife = 50;
+
+	switch (smp.brushType)
+	{
+	default:
+		break;
+
+	case BrushType::Simple :
+		ishika::Splat thisSplat;
+		thisSplat.init(smp.strokePx, smp.x, smp.y, smp.color, 
+			0, 0, 50, 2,100,50);
+		Splats.push_back(thisSplat);
+		break;
+
+	case BrushType::WetOnDry:
+		{
+			int r = 2;
+			int f = 100;
+			float sz = ((double)smp.strokePx)/RATIO/2;
+			ishika::Splat centerSplat;
+			centerSplat.init(smp.strokePx/2, smp.x, smp.y, smp.color, 0, 0, 30,  r,f,50);
+			Splats.push_back(centerSplat);
+
+			ishika::Splat xSplat[6];
+			xSplat[0].init(smp.strokePx/2, smp.x	 ,	smp.y+sz*.5,	smp.color, 0, 0, 30, r,f,	50);
+			xSplat[1].init(smp.strokePx/2, smp.x	 ,	smp.y-sz*.5,	smp.color, 0, 0, 30, r,f,	50);
+			xSplat[2].init(smp.strokePx/2, smp.x+sz*.5,	smp.y+sz*.3,	smp.color, 0, 0, 30, r,f,	50);
+			xSplat[3].init(smp.strokePx/2, smp.x-sz*.5,	smp.y-sz*.3,	smp.color, 0, 0, 30, r,f,	50);
+			xSplat[4].init(smp.strokePx/2, smp.x+sz*.5,	smp.y-sz*.3,	smp.color, 0, 0, 30, r,f,	50);
+			xSplat[5].init(smp.strokePx/2, smp.x-sz*.5,	smp.y+sz*.3,	smp.color, 0, 0, 30, r,f,	50);
+			for(int ixs=0;ixs<6;ixs++){
+				Splats.push_back(xSplat[ixs]);
+			}
+			WRR = -.5;
+			wetLife = 35;
+		}
+		break;
+
+	case BrushType::WetOnWet:
+		{
+			int r = 5;
+			int f = 100;
+			ishika::Splat centerSplat;
+			centerSplat.init(smp.strokePx/2, smp.x, smp.y, smp.color, 0, 0, 19, r, f, 65);
+
+			ishika::Splat periSplat;
+			periSplat.init(3*smp.strokePx/2, smp.x,	smp.y, smp.color, 0, 0, 19, r, f, 15);
+			Splats.push_back(periSplat);
+			Splats.push_back(centerSplat);
+			WRR = -1;
+			wetLife = 25;
+		}
+		break;
+	}
+
+	int kx = WRR*(smp.strokePx), ky = WRR*(smp.strokePx+1);
+	int kxLim = -kx, kyLim = -1*ky;
+
 	if(ix+kx<0) kx = 0-ix;
 	if(iy+ky<0) ky = 0-iy;
-	while( kx< kxLim && (ix+kx)<WIDTH){
-		while( ky< kyLim && (iy+ky)<HEIGHT){
-			WetMap[ix+kx][iy+ky]=90;
+	while( kx<= kxLim && (ix+kx)<WIDTH){
+		while( ky<= kyLim && (iy+ky)<HEIGHT){
+			WetMap[ix+kx][iy+ky]=wetLife;
 			ky++;
-		}kx++;
+		}kx++;ky=-kyLim;
 	}
 }
 
@@ -133,7 +221,7 @@ void CommitStrokeToStamps(int C){
 			while(delta<halfway && i<C && !Strokes.empty()){
 				j++;
 				Strokes.pop_front();
-				sk2 = Strokes.front();
+				if(!Strokes.empty())sk2 = Strokes.front();
 				delta = ptDistance(sk1.x, sk1.y,sk2.x, sk2.y);
 			}
 			i=i+j;
@@ -161,7 +249,7 @@ void CommitStrokeToStamps(int C){
 			}
 			Stamp newStamp; newStamp.copyStroke(sk2);
 			sk1=sk2;
-			Strokes.pop_front();
+			if(!Strokes.empty())Strokes.pop_front();
 			newStamp.x = x; newStamp.y = y;
 			Stamps.push(newStamp);
 		}
@@ -174,6 +262,18 @@ void CommitStrokeToStamps(int C){
 		Stamps.pop();
 		stamp2splat(smp);
 	}
+}
+
+void storeScreen(){
+	glReadPixels(0, 0, WIDTH, HEIGHT,GL_RGBA,GL_UNSIGNED_BYTE, &rgbdata); 
+	int save_result = SOIL_save_image(
+		"image_patch1.tga",
+		SOIL_SAVE_TYPE_TGA,
+		WIDTH, HEIGHT, 4,
+		//rgbdata.data()
+		rgbdata
+		);
+	//rgbdata[0] = SOIL_load_OGL_texture("image_patch1.tga",SOIL_LOAD_AUTO,SOIL_CREATE_NEW_ID,SOIL_FLAG_INVERT_Y);
 }
 
 GLuint texture;
@@ -199,7 +299,6 @@ void dryOut(){
 	cout<<"to: "<<Splats.size()<<endl;
 }
 
-
 void canvas(float z)
 {
 	if(bCnavas){
@@ -214,6 +313,7 @@ void canvas(float z)
 	}
 	else
 	{
+
 		//glDrawPixels(WIDTH,HEIGHT,GL_RGBA,GL_UNSIGNED_BYTE,&rgbdata);
 		glEnable( GL_TEXTURE_2D );
 		//glBindTexture( GL_TEXTURE_2D, texture );
@@ -228,7 +328,10 @@ void canvas(float z)
 }
 
 
-int x_1,x_2,y_1,y_2;
+GLfloat knotVector [8] = {0.0,0.0,0.0,0.0, 1.0,1.0,1.0,1.0,};
+GLfloat cntrlPnts [4][3];
+GLUnurbsObj *cbz = gluNewNurbsRenderer();
+
 void regStrokePoint(int x, int y){
 	//std::cout<<x<<","<<y<<std::endl;
 	Stroke newStroke = Stroke( 
@@ -263,49 +366,6 @@ void regStrokeEndIdx(int button, int state, int x, int y){
 		regStrokePoint(x,y);
 	}
 }
-
-void drawPoint(GLfloat x, GLfloat y, GLfloat red=0.5f, GLfloat green=0.5f, GLfloat blue=0.5f, GLfloat pointSize=1.0f, GLfloat z=.0001){
-	glPointSize(pointSize);
-	glBegin(GL_POINTS);
-	glColor3f(red, green, blue);
-	glVertex3f(x,y,z);
-	glEnd();
-}
-
-void WetMapUpdate(){
-	for(int x=0;x<WIDTH;x++){
-		for(int y=0;y<HEIGHT;y++){
-			int wet = WetMap[x][y];
-			if(wet>0){
-				WetMap[x][y]=wet-1;
-				drawPoint(
-					(float)(x-xmid)/RATIO,
-					(float)(ymid-y)/RATIO,
-					0.93,0.93, 0.95, 
-					.1,1.00001);
-			}
-			if(x>0 && y>0 && x+1<WIDTH && y+1<HEIGHT){
-				if(WetMap[x][y]<7){
-					int wetNbor = 0;
-					if(WetMap[x][y+1]>7) wetNbor++;
-					if(WetMap[x+1][y]>7) wetNbor++;
-					if(WetMap[x][y-1]>7) wetNbor++;
-					if(WetMap[x-1][y]>7) wetNbor++;
-					if (wetNbor>1){
-						WetMap[x][y] += WetMap[x][y+1]/10;
-						WetMap[x][y] += WetMap[x+1][y]/10;
-						WetMap[x][y] += WetMap[x][y-1]/10;
-						WetMap[x][y] += WetMap[x-1][y]/10; 
-					}
-				}
-			}
-		}
-	}
-}
-
-GLfloat knotVector [8] = {0.0,0.0,0.0,0.0, 1.0,1.0,1.0,1.0,};
-GLfloat cntrlPnts [4][3];
-GLUnurbsObj *cbz = gluNewNurbsRenderer();
 
 void drawSpline(int i){	/*
 						cntrlPnts [0][0] = strokePt[i-1][0];
@@ -344,15 +404,16 @@ void drawSplines(){/*
 				   }catch(exception e){}*/
 }
 
-
 void drawSplats(){
 	static int frewla = 1;
 	int i=0;
 	frewla++;
 	for(vector<Splat>::iterator splatIt = Splats.begin(); splatIt!=Splats.end(); ++splatIt, i++){
 		(*splatIt).draw(i);
-		if(frewla%5==0){(*splatIt).advect(WetMap);}
+		if(frewla%15==0){(*splatIt).advect(WetMap);}
 	}
+	if(frewla%15==0)WetMapUpdate();
+	DrawWetMap();
 	//if(frewla%500==0)dryOut();
 	frewla++;
 }
@@ -372,9 +433,6 @@ void drawScene(void)
 	//the identity matrix. This essentially resets 
 	//the coordinate system to eye coordinates.
 
-	/*glEnable(GL_BLEND);
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);*/
-	//glColor3f(0.0,0.0,1.0);
 	glPushMatrix();
 	//This function pushes the current matrix onto the current matrix stack. 
 	//This function is most often used to save the current transformation matrix 
@@ -388,21 +446,15 @@ void drawScene(void)
 	gluLookAt(0,0,-1,
 		0,0,-7,
 		0,1,0);
-	//glScalef(-1,1,1);//Multiplies the current matrix by a scaling matrix.
 
-	//glTranslatef(trans,0,0);//Multiplies the current matrix by a translation matrix.
-
-	//glRotatef(theta, 0, 0, 1);//Rotates the current matrix by a rotation matrix.
-	
-	canvas(.9);
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+	canvas(.9);
 
 	drawSplines();
 	//drawStamps();
 	drawSplats();
-	WetMapUpdate();
-
 	//colorPicker();
 	glPopMatrix();//Pops the current matrix off the matrix stack.
 
@@ -414,6 +466,11 @@ void drawScene(void)
 	triangle();
 	glPopMatrix();*/
 	glFlush();
+
+	glPushMatrix();
+	//glDrawPixels(WIDTH,HEIGHT,GL_RGBA,GL_UNSIGNED_BYTE,&rgbdata[0]);
+	glPopMatrix();
+
 	//glDrawPixels(WIDTH,HEIGHT,GL_RGBA,GL_UNSIGNED_BYTE,&rgbdata[0]);
 	//glFlush() ensures that the drawing commands 
 	//are actually executed rather than stored in a buffer 
@@ -501,6 +558,12 @@ void myKeyboardFunc( unsigned char key, int x, int y )
 		ishika::Strokes.clear();
 		while(!ishika::Stamps.empty()) ishika::Stamps.pop();
 		break;
+
+	case '1': ishika::Current::BrushType = BrushType::Simple; break;
+	case '2': ishika::Current::BrushType = BrushType::WetOnDry; break;
+	case '3': ishika::Current::BrushType = BrushType::WetOnWet; break;
+	case '4': ishika::Current::BrushType = BrushType::Blobby; break;
+	case '5': ishika::Current::BrushType = BrushType::Crunchy; break;
 
 	case (CTRL's'): storeScreen();//ctrl+s
 		//colors

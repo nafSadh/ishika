@@ -10,7 +10,7 @@ namespace ishika{
 	{ 0, 1},//6
 	{ 1, 1}//7
 	};
-	const float alpha = 0.33;
+	const float alpha = 0.15;
 
 	
 	void Splat::init(GLint splatPx, GLfloat pos_x, GLfloat pos_y, GLint color, GLushort bias_x, GLushort bias_y, GLushort age, GLubyte roughness, GLubyte flow_pct, GLubyte opacity){
@@ -52,8 +52,10 @@ namespace ishika{
 
 	void Splat::advect(const GLushort wetmap[][HEIGHT]){
 		a--;
+		if(a<-2400) return;
 		if(a==0) zeroout();
-		if(a<=0) return;
+		if(a<0 && a>-2400 && rand()%3==1) rewet(wetmap); 
+		if(a<0) return;
 
 		float dx = (1-alpha)*bx;
 		float dy = (1-alpha)*by;
@@ -65,18 +67,18 @@ namespace ishika{
 		for(int j=0;j<N;j++){
 			//U = (float)(getRandNZ(-r,r,x[j]*RATIO,y[j]*RATIO))/RATIO;
 			//u = getRandNZ(-r,r,x[j]*RATIO,y[j]*RATIO);
-			u = getRandNZ(-r,r);
-			U = ((float)u)/RATIO;
+			u = getRandNZ(1,1+r);
+			U = ((float)getRandNZ(-r,r))/RATIO;
 			
-			dx = (1-alpha)*(bx/RATIO) + alpha * (1.0/u) * V[j][X];
-			dy = (1-alpha)*(by/RATIO) + alpha * (1.0/u) * V[j][Y];
+			dx = (1-alpha)*(bx) + alpha * (1.0/u) * V[j][X];
+			dy = (1-alpha)*(by) + alpha * (1.0/u) * V[j][Y];
 
 			//u = getrand(-r,r,x[j]*RATIO,y[j]*RATIO);
 			//U = (float)(getrand(-r,r,x[j]*RATIO,y[j]*RATIO))/RATIO;
 
 
-			GLfloat _x = x[j] + ((float)(f)/100)*dx + 0 + U;
-			GLfloat _y = y[j] + ((float)(f)/100)*dy + 0 + U;
+			GLfloat _x = x[j] + ((float)(f)/100)*dx/RATIO + 0 + U/a;
+			GLfloat _y = y[j] + ((float)(f)/100)*dy/RATIO + 0 + U/a;
 
 			int ix = _x*RATIO+xmid;
 			int iy = ymid-_y*RATIO;
@@ -86,9 +88,10 @@ namespace ishika{
 			int next=(j+1)%N;
 			GLfloat distPrev = ptDistance(_x,_y, x[prev], y[prev]); 
 			GLfloat distNext = ptDistance(_x,_y, x[next], y[next]); 
-			if(distNext>splatSize){
-				distNext = distNext;
-			}
+
+			//other way
+
+			
 			if(0<=ix && ix<WIDTH && 0<=iy && iy<HEIGHT &&
 				wetmap[ix][iy]>0
 				&& distPrev<splatSize
@@ -106,6 +109,16 @@ namespace ishika{
 
 	void Splat::zeroout(){
 		bx=by=0;
+	}
+
+	void Splat::rewet(const GLushort wetmap[][HEIGHT]){
+		int wetCnt = 0;
+		for(int j=0;j<N;j++){			
+			int ix = x[j]*RATIO+xmid;
+			int iy = ymid-y[j]*RATIO;
+			if(wetmap[ix][iy]>50)wetCnt++;
+		}
+		if(wetCnt>4) {a = wetCnt*10; /*std::cout<<"rewet\n";*/}
 	}
 
 	void Splat::draw(int i){

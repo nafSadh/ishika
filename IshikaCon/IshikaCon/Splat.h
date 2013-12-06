@@ -24,6 +24,7 @@ namespace ishika{
 	private:
 		GLfloat area();
 		void zeroout();
+		void rewet(const GLushort wetmap[][HEIGHT]);
 
 	public:
 		/**
@@ -34,6 +35,7 @@ namespace ishika{
 		void advect(const GLushort wetmap[][HEIGHT]);
 		void draw(int i);
 		GLshort age(){return a;}
+		void bias(int x, int y){bx=x; by=y;}
 	};
 
 	/* 
