@@ -6,16 +6,6 @@
 
 using namespace std;
 
-GLfloat strokePt[STROKE_PTS][DIM];
-GLint strokeCol[STROKE_PTS];
-GLint strokeEndIdx[STROKE_CNT];
-int strokeEITop = 1;
-int strokePtIdx = 0;
-int lastStampedPt = -1;
-
-GLfloat stampPt[STAMPS][DIM];
-GLint stampColr[STAMPS];
-int stampTopIdx = 0;
 
 std::vector<unsigned char> rgbdata (4*WIDTH*HEIGHT);
 
@@ -90,30 +80,28 @@ void storeScreen(){
 
 }
 
-void stamp2splat(int i){
-	GLfloat x = stampPt[i][X];
-	GLfloat y = stampPt[i][Y];	
-
-	int c = stampColr[i];
+void stamp2splat(Stamp smp){
+	GLfloat x = smp.x;
+	GLfloat y = smp.y;	
 
 	ishika::Splat thisSplat;
-	thisSplat.init(15, x, y, c, 0, 0, 5, 50, 100, 50);
+	//thisSplat.init(15, x, y, c, 0, 0, 5, 50, 100, 50);
+	thisSplat.init(smp.strokePx,smp.x, smp.y, smp.color, 0, 0, 50, smp.strokePx,100,50);
 	Splats.push_back(thisSplat);
 
 	int ix = x*RATIO+xmid;
 	int iy = ymid-y*RATIO;
 
-	int kx = -16, ky = -16;
+	int kx = -(smp.strokePx+1), ky = -(smp.strokePx+1);
 	if(ix+kx<0) kx = 0-ix;
 	if(iy+ky<0) ky = 0-iy;
-	while( kx< 4 && (ix+kx)<WIDTH){
-		while( ky< 4 && (iy+ky)<HEIGHT){
+	while( kx< smp.strokePx && (ix+kx)<WIDTH){
+		while( ky< smp.strokePx && (iy+ky)<HEIGHT){
 			WetMap[ix+kx][iy+ky]=90;
 			ky++;
 		}kx++;
 	}
 }
-
 
 void CommitStrokeToStamps(int C){
 	if(C<0 || Strokes.empty()) return;
@@ -155,7 +143,6 @@ void CommitStrokeToStamps(int C){
 				y1 = sk1.y,
 				x2 = sk2.x,
 				y2 = sk2.y;
-			GLint col = strokeCol[i];
 			x=x1;y=y1;
 			int steps = ceil(delta/StampDelta);
 			int step = 0;
@@ -178,83 +165,10 @@ void CommitStrokeToStamps(int C){
 
 	while (!Stamps.empty())
 	{
-		ishika::Splat thisSplat;
 		Stamp smp = Stamps.front();
-		//thisSplat.init(15, x, y, c, 0, 0, 5, 50, 100, 50);
-		thisSplat.init(smp.strokePx,smp.x, smp.y, smp.color, 0, 0, 50, smp.strokePx,100,50);
+		stamp2splat(smp);
 		Stamps.pop();
-		Splats.push_back(thisSplat);
 	}
-}
-
-void strokeToStamps(){
-	int i=strokeEndIdx[strokeEITop-2];
-	int end = strokeEndIdx[strokeEITop-1]-1; 
-	int k = stampTopIdx; 
-
-	stampPt[k][X] = strokePt[i][X];
-	stampPt[k][Y] = strokePt[i][Y];
-	stampColr[k] = strokeCol[i];
-
-	while(i<end){
-		//calculate point delta
-		GLfloat delta = ptDistance(strokePt[i][X], strokePt[i][Y],
-			strokePt[i+1][X], strokePt[i+1][Y]);
-
-		if(delta <=StampDelta){
-			int j = 1;//jump
-			//advance a min distance
-			GLfloat halfway = StampDelta*.65;
-			while(delta<halfway && i<end){
-				j++;
-				delta = ptDistance(strokePt[i][X], strokePt[i][Y],
-					strokePt[i+j][X], strokePt[i+j][Y]);
-			}
-			i=i+j;
-			k++;
-			stampPt[k][X] = strokePt[i][X];
-			stampPt[k][Y] = strokePt[i][Y];
-			stampColr[k] = strokeCol[i];
-		}
-		if(delta>StampDelta){
-			GLfloat x,y, dist = 0.0,
-				x0 = strokePt[i-1][X],
-				y0 = strokePt[i-1][Y],
-				x1 = strokePt[i][X],
-				y1 = strokePt[i][Y],
-				x2 = strokePt[i+1][X],
-				y2 = strokePt[i+1][Y],
-				x3 = strokePt[i+2][X],
-				y3 = strokePt[i+2][Y];
-			GLint col = strokeCol[i];
-			x=x1;y=y1;
-			int steps = ceil(delta/StampDelta);
-			int step = 0;
-			//a0 = y0/ (x0 - x1)(x0 - x2);
-			//a1 = y1 / (x1 - x0)(x1 - x2);
-			//a2 = y2/ (x2 - x0)(x2 - x1);
-			while(step++<steps){
-				k++;
-				stampPt[k][X] = x = x1 + step * StampDelta * (x2-x1) / delta;
-				stampPt[k][Y] = y = y1 + step * StampDelta * (y2-y1) / delta;
-				/*= y0 *((x- x1)*(x- x2)) / ((x0 - x1)*(x0 - x2))
-				+ y1 *((x - x0)*(x - x2))/ ((x1 - x0)*(x1 - x2)) 
-				+ y2 *((x- x0)*(x- x1))/ ((x2 - x0)*(x2 - x1));*/
-				stampColr[k] = col;
-				//dist+=StampDelta;
-			}
-			k++;
-			stampPt[k][X] = x2;
-			stampPt[k][Y] = y2;
-			stampColr[k] = col;
-		}
-		i++;
-	}
-
-	for(int j = stampTopIdx;j<=k;j++){
-		stamp2splat(j);
-	}
-	stampTopIdx = k+1;
 }
 
 
@@ -272,12 +186,6 @@ void canvas()
 
 void regStrokePoint(int x, int y){
 	//std::cout<<x<<","<<y<<std::endl;
-	strokePt[strokePtIdx][0]=(float)(x-xmid)/RATIO;
-	strokePt[strokePtIdx][1]=(float)(ymid-y)/RATIO;
-	strokeCol[strokePtIdx] = Current::Color;
-	strokePtIdx=(strokePtIdx+1)%STROKE_PTS;
-
-	//ishika 
 	Stroke newStroke = Stroke( 
 		(float)(x-xmid)/RATIO,
 		(float)(ymid-y)/RATIO,
@@ -290,15 +198,8 @@ void regStrokePoint(int x, int y){
 
 void regStrokeEndIdx(int button, int state, int x, int y){
 	if(button == GLUT_LEFT_BUTTON && state == GLUT_UP){
-		strokeEndIdx[strokeEITop++] = strokePtIdx;
-		strokeEndIdx[strokeEITop] = STROKE_CNT+1;
-
-		//strokeToStamps();
 		CommitStrokeToStamps(Current::StrokePointCount);
 		Current::StrokePointCount = 0;
-		//
-		strokeEITop = 1; strokePtIdx=0;
-		lastStampedPt = strokePtIdx; 
 	}
 
 	if(button == GLUT_RIGHT_BUTTON && state == GLUT_DOWN){
@@ -312,12 +213,6 @@ void drawPoint(GLfloat x, GLfloat y, GLfloat red=0.5f, GLfloat green=0.5f, GLflo
 	glColor3f(red, green, blue);
 	glVertex3f(x,y,z);
 	glEnd();
-}
-
-void drawPoints(){
-	for(int i=0;i<strokePtIdx;i++){
-		drawPoint(strokePt[i][0],strokePt[i][1]);
-	}
 }
 
 void WetMapUpdate(){
@@ -351,20 +246,11 @@ void WetMapUpdate(){
 	}
 }
 
-void drawStamp(int i){
-	GLint c = stampColr[i];
-	drawPoint(stampPt[i][X], stampPt[i][Y],
-		(GLfloat)(c/0x010000)/256,
-		(GLfloat)((c/0x000100)%0x100)/256,
-		(GLfloat)(c%0x100)/256,
-		2.0f);
-}
-
 GLfloat knotVector [8] = {0.0,0.0,0.0,0.0, 1.0,1.0,1.0,1.0,};
 GLfloat cntrlPnts [4][3];
 GLUnurbsObj *cbz = gluNewNurbsRenderer();
 
-void drawSpline(int i){	
+void drawSpline(int i){	/*
 	cntrlPnts [0][0] = strokePt[i-1][0];
 	cntrlPnts [0][1] = strokePt[i-1][1];
 	cntrlPnts [0][2] = 0.1;
@@ -388,50 +274,27 @@ void drawSpline(int i){
 		(float)((c/0x000100)%0x100)/256,
 		(float)(c%0x100)/256
 		);
-	gluNurbsCurve(cbz, 8, knotVector, 3, &cntrlPnts[0][0], 4, GL_MAP1_VERTEX_3);
+	gluNurbsCurve(cbz, 8, knotVector, 3, &cntrlPnts[0][0], 4, GL_MAP1_VERTEX_3);*/
 }
 
 
-//void drawSplines(){
-//	for(int m=0;m<=strokeEITop;m++){
-//		for(int i=strokeEndIdx[m]+1; i+2<strokeEndIdx[m+1] && i+2<strokePtIdx ;i+=3){
-//			gluBeginCurve(cbz);
-//				drawSpline(i);
-//			gluEndCurve(cbz);
-//		}
-//	}
-//}
-
-void drawSplines(){
+void drawSplines(){/*
 	try{
 		for(int i=lastStampedPt+2; i+2<strokePtIdx ;i+=3){
 			gluBeginCurve(cbz);
 			drawSpline(i);
 			gluEndCurve(cbz);
 		}
-	}catch(exception e){}
+	}catch(exception e){}*/
 }
 
-void drawStamps(){
-	for(int i=0;i<stampTopIdx;i++){
-		drawStamp(i);
-	}
-}
-
-//void drawSplats(){
-//	for(int i=0;i<stampTopIdx;i++){
-//		//for(int i=stampTopIdx-1;i>=0;i--){
-//		//drawSplat(i);
-//		Splats[i].draw(i);
-//		Splats[i].advect(WetMap);
-//	}
-//}
-
+int frewla = 0;
 void drawSplats(){
 	int i=0;
+	frewla++;
 	for(vector<Splat>::iterator splatIt = Splats.begin(); splatIt!=Splats.end(); ++splatIt, i++){
 		(*splatIt).draw(i);
-		(*splatIt).advect(WetMap);
+		if(frewla%5==0)(*splatIt).advect(WetMap);
 	}
 }
 
@@ -567,9 +430,9 @@ void myKeyboardFunc( unsigned char key, int x, int y )
 		Current::BrushPx--;
 		break;
 	case '0':
-		strokeEITop = 1; strokePtIdx=0; stampTopIdx = 0;
 		ishika::Splats.clear();
 		ishika::Strokes.clear();
+		while(!ishika::Stamps.empty()) ishika::Stamps.pop();
 		break;
 
 	case '1': storeScreen();
