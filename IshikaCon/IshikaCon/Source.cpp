@@ -7,7 +7,8 @@
 using namespace std;
 
 
-std::vector<unsigned char> rgbdata (4*WIDTH*HEIGHT);
+//std::vector<unsigned char> rgbdata (4*WIDTH*HEIGHT);
+unsigned char rgbdata [4*WIDTH*HEIGHT];
 
 
 void colorPicker(int s=2){
@@ -70,13 +71,15 @@ using namespace ishika;
 
 
 void storeScreen(){
-	glReadPixels(0, 0, WIDTH, HEIGHT,GL_RGBA,GL_UNSIGNED_BYTE, &rgbdata[0]); 
+	glReadPixels(0, 0, WIDTH, HEIGHT,GL_RGBA,GL_UNSIGNED_BYTE, &rgbdata); 
 	int save_result = SOIL_save_image(
 		"image_patch1.tga",
 		SOIL_SAVE_TYPE_TGA,
 		WIDTH, HEIGHT, 4,
-		rgbdata.data()
+		//rgbdata.data()
+		rgbdata
 		);
+	rgbdata[0] = SOIL_load_OGL_texture("image_patch1.tga",SOIL_LOAD_AUTO,SOIL_CREATE_NEW_ID,SOIL_FLAG_INVERT_Y);
 
 }
 
@@ -94,7 +97,7 @@ void stamp2splat(Stamp smp){
 	int iy = ymid-y*RATIO;
 
 	int kx = -.5*(smp.strokePx+1), ky = -.5*(smp.strokePx+1);
-	int kxLim = -kx, kyLim = -ky;
+	int kxLim = -2*kx, kyLim = -2*ky;
 	if(ix+kx<0) kx = 0-ix;
 	if(iy+ky<0) ky = 0-iy;
 	while( kx< kxLim && (ix+kx)<WIDTH){
@@ -173,17 +176,55 @@ void CommitStrokeToStamps(int C){
 	}
 }
 
+GLuint texture;
+bool bCnavas = true;
+void dryOut(){
+	//glReadPixels(0, 0, WIDTH, HEIGHT,GL_RGBA,GL_UNSIGNED_BYTE, &rgbdata[0]); 
+	storeScreen();
+	//tempSplat.clear();	
+	glGenTextures( 1, &texture );
+	glBindTexture( GL_TEXTURE_2D, texture );
+	glTexEnvf( GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE );
+	glTexImage2D( GL_TEXTURE_2D, 4, GL_RGBA, WIDTH, HEIGHT,0,
+		GL_RGBA, GL_UNSIGNED_BYTE, &rgbdata);	
+	bCnavas=false;
+	cout<<"fixing: "<<Splats.size()<<endl;
+	vector<Splat> tempSplat;
+	swap(Splats,tempSplat);
+	for(vector<Splat>::iterator splatIt = tempSplat.begin(); splatIt!=tempSplat.end(); ++splatIt){
+		if((*splatIt).age()>0){
+			Splats.push_back(*splatIt);
+		}
+	}
+	cout<<"to: "<<Splats.size()<<endl;
+}
 
-void canvas()
+
+void canvas(float z)
 {
-	glBegin(GL_QUADS);//Denotes the beginning of a group of vertices that define one or more primitives.
-	glColor3f(1,1,1);
-	glVertex3f(Xmin,Ymin, .0);
-	glVertex3f(Xmin,Ymax, .0);
-	glVertex3f(Xmax,Ymax, .0);
-	glVertex3f(Xmax,Ymin, .0);
-	glEnd();	//Terminates a list of vertices that specify a primitive initiated by glBegin.
+	if(bCnavas){
+		glBegin(GL_QUADS);//Denotes the beginning of a group of vertices that define one or more primitives.
+		glColor3f(1,1,1);
+		glVertex3f(Xmin,Ymin, z);
+		glVertex3f(Xmin,Ymax, z);
+		glVertex3f(Xmax,Ymax, z);
+		glVertex3f(Xmax,Ymin, z);
+		glEnd();	//Terminates a list of vertices that specify a primitive initiated by glBegin.
+		//glDrawPixels(WIDTH,HEIGHT,GL_RGBA,GL_UNSIGNED_BYTE,&rgbdata[0]);
+	}
+	else
+	{
+		//glDrawPixels(WIDTH,HEIGHT,GL_RGBA,GL_UNSIGNED_BYTE,&rgbdata);
+		glEnable( GL_TEXTURE_2D );
+		//glBindTexture( GL_TEXTURE_2D, texture );
+		glBegin( GL_QUADS );
+		glTexCoord2d(0.0,0.0); glVertex3d(Xmin,Ymin,z);
+		glTexCoord2d(1.0,0.0); glVertex3d(Xmax,Ymin,z);
+		glTexCoord2d(1.0,1.0); glVertex3d(Xmax,Ymax,z);
+		glTexCoord2d(0.0,1.0); glVertex3d(Xmin,Ymax,z);
+		glEnd();/**/
 
+	}
 }
 
 
@@ -196,13 +237,13 @@ void regStrokePoint(int x, int y){
 		Current::Color,
 		Current::BrushPx,
 		Current::BrushType);	
-	
+
 	//giving bias to prev
 	if(!Strokes.empty()){
 		(Strokes.back()).bx = x-x_2;
 		(Strokes.back()).by = y-y_2;
 	}else{ x_1 =x; y_1=y;	}
-	
+
 	//adding new onw
 	Strokes.push_back(newStroke);
 	Current::StrokePointCount++;
@@ -215,6 +256,7 @@ void regStrokeEndIdx(int button, int state, int x, int y){
 	if(button == GLUT_LEFT_BUTTON && state == GLUT_UP){
 		CommitStrokeToStamps(Current::StrokePointCount);
 		Current::StrokePointCount = 0;
+		Strokes.clear();
 	}
 
 	if(button == GLUT_RIGHT_BUTTON && state == GLUT_DOWN){
@@ -231,17 +273,16 @@ void drawPoint(GLfloat x, GLfloat y, GLfloat red=0.5f, GLfloat green=0.5f, GLflo
 }
 
 void WetMapUpdate(){
-	drawPoint(1,1);
 	for(int x=0;x<WIDTH;x++){
 		for(int y=0;y<HEIGHT;y++){
 			int wet = WetMap[x][y];
 			if(wet>0){
 				WetMap[x][y]=wet-1;
 				drawPoint(
-				(float)(x-xmid)/RATIO,
-				(float)(ymid-y)/RATIO,
-				0.95,0.95, 0.97, 
-				1.0);
+					(float)(x-xmid)/RATIO,
+					(float)(ymid-y)/RATIO,
+					0.93,0.93, 0.95, 
+					.1,1.00001);
 			}
 			if(x>0 && y>0 && x+1<WIDTH && y+1<HEIGHT){
 				if(WetMap[x][y]<7){
@@ -267,51 +308,53 @@ GLfloat cntrlPnts [4][3];
 GLUnurbsObj *cbz = gluNewNurbsRenderer();
 
 void drawSpline(int i){	/*
-	cntrlPnts [0][0] = strokePt[i-1][0];
-	cntrlPnts [0][1] = strokePt[i-1][1];
-	cntrlPnts [0][2] = 0.1;
+						cntrlPnts [0][0] = strokePt[i-1][0];
+						cntrlPnts [0][1] = strokePt[i-1][1];
+						cntrlPnts [0][2] = 0.1;
 
-	cntrlPnts [1][0] = strokePt[i][0];
-	cntrlPnts [1][1] = strokePt[i][1];
-	cntrlPnts [1][2] = 0.1;
+						cntrlPnts [1][0] = strokePt[i][0];
+						cntrlPnts [1][1] = strokePt[i][1];
+						cntrlPnts [1][2] = 0.1;
 
-	cntrlPnts [2][0] = strokePt[i+1][0];
-	cntrlPnts [2][1] = strokePt[i+1][1];
-	cntrlPnts [2][2] = 0.1;
+						cntrlPnts [2][0] = strokePt[i+1][0];
+						cntrlPnts [2][1] = strokePt[i+1][1];
+						cntrlPnts [2][2] = 0.1;
 
-	cntrlPnts [3][0] = strokePt[i+2][0];
-	cntrlPnts [3][1] = strokePt[i+2][1];
-	cntrlPnts [3][2] = 0.1;
+						cntrlPnts [3][0] = strokePt[i+2][0];
+						cntrlPnts [3][1] = strokePt[i+2][1];
+						cntrlPnts [3][2] = 0.1;
 
-	glPointSize(5.0f);
-	GLint c = strokeCol[i];
-	glColor3f(
-		(float)(c/0x010000)/256,
-		(float)((c/0x000100)%0x100)/256,
-		(float)(c%0x100)/256
-		);
-	gluNurbsCurve(cbz, 8, knotVector, 3, &cntrlPnts[0][0], 4, GL_MAP1_VERTEX_3);*/
+						glPointSize(5.0f);
+						GLint c = strokeCol[i];
+						glColor3f(
+						(float)(c/0x010000)/256,
+						(float)((c/0x000100)%0x100)/256,
+						(float)(c%0x100)/256
+						);
+						gluNurbsCurve(cbz, 8, knotVector, 3, &cntrlPnts[0][0], 4, GL_MAP1_VERTEX_3);*/
 }
-
 
 void drawSplines(){/*
-	try{
-		for(int i=lastStampedPt+2; i+2<strokePtIdx ;i+=3){
-			gluBeginCurve(cbz);
-			drawSpline(i);
-			gluEndCurve(cbz);
-		}
-	}catch(exception e){}*/
+				   try{
+				   for(int i=lastStampedPt+2; i+2<strokePtIdx ;i+=3){
+				   gluBeginCurve(cbz);
+				   drawSpline(i);
+				   gluEndCurve(cbz);
+				   }
+				   }catch(exception e){}*/
 }
 
-int frewla = 0;
+
 void drawSplats(){
+	static int frewla = 1;
 	int i=0;
 	frewla++;
 	for(vector<Splat>::iterator splatIt = Splats.begin(); splatIt!=Splats.end(); ++splatIt, i++){
 		(*splatIt).draw(i);
-		if(frewla%5==0)(*splatIt).advect(WetMap);
+		if(frewla%5==0){(*splatIt).advect(WetMap);}
 	}
+	//if(frewla%500==0)dryOut();
+	frewla++;
 }
 
 void drawScene(void)
@@ -329,8 +372,8 @@ void drawScene(void)
 	//the identity matrix. This essentially resets 
 	//the coordinate system to eye coordinates.
 
-	glEnable(GL_BLEND);
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	/*glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);*/
 	//glColor3f(0.0,0.0,1.0);
 	glPushMatrix();
 	//This function pushes the current matrix onto the current matrix stack. 
@@ -342,20 +385,24 @@ void drawScene(void)
 	//for mapping the clipping volume coordinates to physical 
 	//window coordinates.
 
+	gluLookAt(0,0,-1,
+		0,0,-7,
+		0,1,0);
 	//glScalef(-1,1,1);//Multiplies the current matrix by a scaling matrix.
 
-	glTranslatef(trans,0,0);//Multiplies the current matrix by a translation matrix.
+	//glTranslatef(trans,0,0);//Multiplies the current matrix by a translation matrix.
 
-	glRotatef(theta, 0, 0, 1);//Rotates the current matrix by a rotation matrix.
-
+	//glRotatef(theta, 0, 0, 1);//Rotates the current matrix by a rotation matrix.
+	
+	canvas(.9);
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	canvas();
 
 	drawSplines();
 	//drawStamps();
 	drawSplats();
 	WetMapUpdate();
+
 	//colorPicker();
 	glPopMatrix();//Pops the current matrix off the matrix stack.
 
@@ -367,6 +414,7 @@ void drawScene(void)
 	triangle();
 	glPopMatrix();*/
 	glFlush();
+	//glDrawPixels(WIDTH,HEIGHT,GL_RGBA,GL_UNSIGNED_BYTE,&rgbdata[0]);
 	//glFlush() ensures that the drawing commands 
 	//are actually executed rather than stored in a buffer 
 	//waiting additional OpenGL commands.
@@ -430,8 +478,11 @@ void resizeWindow(int w, int h)
 	gluOrtho2D(windowXmin, windowXmax, windowYmin, windowYmax);
 	//This function defines a 2D orthographic projection matrix.
 }
+
+#define CTRL -96+
 void myKeyboardFunc( unsigned char key, int x, int y )
 {
+	cout<<(int)key;
 	switch ( key ) 
 	{
 	case 27: exit(1);
@@ -451,7 +502,7 @@ void myKeyboardFunc( unsigned char key, int x, int y )
 		while(!ishika::Stamps.empty()) ishika::Stamps.pop();
 		break;
 
-	case '1': storeScreen();
+	case (CTRL's'): storeScreen();//ctrl+s
 		//colors
 	case 'w': Current::Color = 0xffffff; break;//white
 	case 'k': Current::Color = 0x000000; break;//black
@@ -530,6 +581,7 @@ int main (int argc, char **argv)
 	//a RGB display (GLUT_RGB) along with double-buffering (GLUT_DOUBLE), 
 	//so the screen won't flicker when we redraw it. 
 	//GLUT_DEPTH Specifies a 32-bit depth buffer
+
 
 	//glutInitWindowPosition(100,100);
 	glutInitWindowSize(WIDTH,HEIGHT);

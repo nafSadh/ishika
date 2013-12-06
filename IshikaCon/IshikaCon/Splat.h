@@ -16,13 +16,14 @@ namespace ishika{
 		//params
 		GLshort bx; //motion bias x
 		GLshort by; //motion bias y
-		GLushort a;//age
+		GLshort a;//age
 		GLubyte  r;//roughness [1~255px]
 		GLubyte  f;//flow percentage [0-100]
 		GLubyte  o;//opacity
 
 	private:
 		GLfloat area();
+		void zeroout();
 
 	public:
 		/**
@@ -32,6 +33,7 @@ namespace ishika{
 
 		void advect(const GLushort wetmap[][HEIGHT]);
 		void draw(int i);
+		GLshort age(){return a;}
 	};
 
 	/* 

@@ -52,6 +52,7 @@ namespace ishika{
 
 	void Splat::advect(const GLushort wetmap[][HEIGHT]){
 		a--;
+		if(a==0) zeroout();
 		if(a<=0) return;
 
 		float dx = (1-alpha)*bx;
@@ -67,8 +68,8 @@ namespace ishika{
 			u = getRandNZ(-r,r);
 			U = ((float)u)/RATIO;
 			
-			dx = (1-alpha)*(bx/RATIO) + alpha * (1/u) * V[j][X];
-			dy = (1-alpha)*(by/RATIO) + alpha * (1/u) * V[j][Y];
+			dx = (1-alpha)*(bx/RATIO) + alpha * (1.0/u) * V[j][X];
+			dy = (1-alpha)*(by/RATIO) + alpha * (1.0/u) * V[j][Y];
 
 			//u = getrand(-r,r,x[j]*RATIO,y[j]*RATIO);
 			//U = (float)(getrand(-r,r,x[j]*RATIO,y[j]*RATIO))/RATIO;
@@ -90,8 +91,8 @@ namespace ishika{
 			}
 			if(0<=ix && ix<WIDTH && 0<=iy && iy<HEIGHT &&
 				wetmap[ix][iy]>0
-				&& distPrev<splatSize*4
-				&& distNext<splatSize*4) {
+				&& distPrev<splatSize
+				&& distNext<splatSize) {
 				x[j] = _x;
 				y[j] = _y;
 				//if(r>0) o--; else o++;
@@ -101,6 +102,10 @@ namespace ishika{
 		//pigment conserve 
 		o = o*area0/area1;
 		if(o<15) o=15;
+	}
+
+	void Splat::zeroout(){
+		bx=by=0;
 	}
 
 	void Splat::draw(int i){
@@ -114,12 +119,11 @@ namespace ishika{
 		//cout<<z<<endl;
 		glBegin(GL_POLYGON);
 		for(int j=0;j<N;j++){
-			glVertex3f(x[j],y[j],.1*z);
+			glVertex3f(x[j],y[j],1+.1*z);
 		}
 		glEnd();
 	}
-
-
+	
 	GLfloat Splat::area(){
 		GLfloat h1 = ptDistance(x[0],y[0],x[4],y[4]);
 		GLfloat w1 = ptDistance(x[2],y[2],x[6],y[6]);
@@ -128,61 +132,4 @@ namespace ishika{
 
 		return (h1*w1 + h2*w2 )*.5; 
 	}
-
-	//void advect(int i){
-	//	SplatParam[i].a--;
-	//	if(SplatParam[i].a<=0) return;
-
-	//	float dx = (1-alpha)*SplatParam[i].bx;
-	//	float dy = (1-alpha)*SplatParam[i].by;
-	//	int r = SplatParam[i].r;
-	//	unsigned int u = getrand(1,r+1);
-	//	float U = u;
-	//	//float U = (1*u)/RATIO;
-
-	//	//float curPeri = 0;
-
-	//	for(int j=0;j<N;j++){
-	//		dx = alpha * (1/U) * V[j][X];
-	//		dy = alpha * (1/U) * V[j][Y];
-
-	//		float x = SplatVertex[i][j][X];
-	//		float y = SplatVertex[i][j][Y];
-
-	//		u = getrand(-r,r);
-
-	//		x = x + ((float)(SplatParam[i].f)/100)*dx + 0 + u/RATIO;
-	//		y = y + ((float)(SplatParam[i].f)/100)*dy + 0 + u/RATIO;
-
-	//		int ix = x*RATIO+xmid;
-	//		int iy = ymid-y*RATIO;
-
-	//		if(WetMap[ix][iy]>0) {
-	//			SplatVertex[i][j][X] = x;
-	//			SplatVertex[i][j][Y] = y;
-	//			if(r>0) SplatParam[i].o--; else SplatParam[i].o++;
-	//		}
-	//	}
-	//}
-
-	//void drawSplat(int i){
-	//	//glEnable(GL_BLEND);
-	//	//glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	//	GLint c = SplactColor[i];
-	//	GLfloat opacity = 0.0035* SplatParam[i].o;
-	//	glColor4f((GLfloat)(c/0x010000)/256,
-	//		(GLfloat)((c/0x000100)%0x100)/256,
-	//		(GLfloat)(c%0x100)/256,
-	//		opacity
-	//		);
-	//	GLfloat z = ((float)i)/SPLATS;
-	//	//cout<<z<<endl;
-	//	glBegin(GL_POLYGON);
-	//	for(int j=0;j<N;j++){
-	//		glVertex3f(SplatVertex[i][j][X],SplatVertex[i][j][Y],.1*z);
-	//	}
-	//	glEnd();
-
-	//	advect(i);
-	//}
 }
