@@ -19,4 +19,8 @@ namespace ishika{
 		this->brushType = brush;
 	}
 
+	void Stamp::copyStroke(Stroke sk){
+		init(sk.x, sk.y,sk.color,sk.strokePx,sk.brushType);
+	}
+
 }

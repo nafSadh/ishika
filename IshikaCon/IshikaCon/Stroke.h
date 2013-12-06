@@ -18,5 +18,13 @@ namespace ishika {
 
 		void init(GLfloat x, GLfloat y, GLint color, GLuint strokePx=5, BrushType brush=BrushType::Simple);
 	};
+
+	class  Stamp : public Stroke
+	{
+		public:
+			void copyStroke(Stroke stroke);
+		private:
+
+	};
 }
 #endif STROKE_H

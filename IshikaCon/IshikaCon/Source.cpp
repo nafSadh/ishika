@@ -2,6 +2,7 @@
 #include "Util.h"
 #include "Splat.h"
 #include "Stroke.h"
+#include "C:\\Install\SOIL\SOIL.h"
 
 using namespace std;
 
@@ -16,24 +17,78 @@ GLfloat stampPt[STAMPS][DIM];
 GLint stampColr[STAMPS];
 int stampTopIdx = 0;
 
+std::vector<unsigned char> rgbdata (4*WIDTH*HEIGHT);
 
 
+void colorPicker(int s=2){
+	glBegin(GL_TRIANGLES);//Denotes the beginning of a group of vertices that define one or more primitives.
+	glColor3f(1,1,1); 	glVertex3f( s, s, .9);//7
+	glColor3f(1,0,0); 	glVertex3f( s, 0, .9);//4
+	glColor3f(1,1,1); 	glVertex3f( 0, 0, .9);//C
 
-namespace ishika{
+	glColor3f(1,1,0); 	glVertex3f( s,-s, .9);//6
+	glColor3f(1,0,1); 	glVertex3f( 0,-s, .9);//5
+	glColor3f(1,1,1); 	glVertex3f( 0, 0, .9);//C
+
+	glColor3f(0,0,0); 	glVertex3f(-s,-s, .9);//0
+	glColor3f(0,0,1); 	glVertex3f(-s, 0, .9);//1
+	glColor3f(1,1,1); 	glVertex3f( 0, 0, .9);//C
+
+	glColor3f(0,1,1); 	glVertex3f(-s, s, .9);//3
+	glColor3f(0,1,0); 	glVertex3f( 0, s, .9);//2
+	glColor3f(1,1,1); 	glVertex3f( 0, 0, .9);//C
+
+
+	glColor3f(1,0,0); 	glVertex3f( s, 0, .9);//4
+	glColor3f(1,1,0); 	glVertex3f( s,-s, .9);//6
+	glColor3f(1,1,1); 	glVertex3f( 0, 0, .9);//C
+
+	glColor3f(1,0,1); 	glVertex3f( 0,-s, .9);//5
+	glColor3f(0,0,0); 	glVertex3f(-s,-s, .9);//0
+	glColor3f(1,1,1); 	glVertex3f( 0, 0, .9);//C
+
+	glColor3f(0,0,1); 	glVertex3f(-s, 0, .9);//1
+	glColor3f(0,1,1); 	glVertex3f(-s, s, .9);//3
+	glColor3f(1,1,1); 	glVertex3f( 0, 0, .9);//C
+
+	glColor3f(0,1,0); 	glVertex3f( 0, s, .9);//2
+	glColor3f(1,1,1); 	glVertex3f( s, s, .9);//7
+	glColor3f(1,1,1); 	glVertex3f( 0, 0, .9);//C
+
+
+	glEnd();
+}
+
+
+namespace ishika{ 
 
 	namespace Current{
 		GLint BrushPx = 5;
 		ishika::BrushType BrushType = BrushType::Simple;
 		GLint Color = 0x0077cc;
+		int StrokePointCount = 0;
 	}
 
 	GLushort WetMap[WIDTH][HEIGHT];
 
 	vector<Splat> Splats;
 	list<Stroke> Strokes;
+	queue<Stamp> Stamps;
 	GLint splatTopIndex = 0;
 }
 using namespace ishika;
+
+
+void storeScreen(){
+	glReadPixels(0, 0, WIDTH, HEIGHT,GL_RGBA,GL_UNSIGNED_BYTE, &rgbdata[0]); 
+	int save_result = SOIL_save_image(
+		"image_patch1.tga",
+		SOIL_SAVE_TYPE_TGA,
+		WIDTH, HEIGHT, 4,
+		rgbdata.data()
+		);
+
+}
 
 void stamp2splat(int i){
 	GLfloat x = stampPt[i][X];
@@ -42,13 +97,13 @@ void stamp2splat(int i){
 	int c = stampColr[i];
 
 	ishika::Splat thisSplat;
-	thisSplat.init(5, x, y, c, 0, 0, 50, 5, 100, 50);
+	thisSplat.init(15, x, y, c, 0, 0, 5, 50, 100, 50);
 	Splats.push_back(thisSplat);
 
 	int ix = x*RATIO+xmid;
 	int iy = ymid-y*RATIO;
 
-	int kx = -6, ky = -6;
+	int kx = -16, ky = -16;
 	if(ix+kx<0) kx = 0-ix;
 	if(iy+ky<0) ky = 0-iy;
 	while( kx< 4 && (ix+kx)<WIDTH){
@@ -59,34 +114,78 @@ void stamp2splat(int i){
 	}
 }
 
-void canvas()
-{
-	glBegin(GL_QUADS);//Denotes the beginning of a group of vertices that define one or more primitives.
-	glColor3f(1,1,1);
-	glVertex3f(Xmin,Ymin, .0);
-	glVertex3f(Xmin,Ymax, .0);
-	glVertex3f(Xmax,Ymax, .0);
-	glVertex3f(Xmax,Ymin, .0);
-	glEnd();	//Terminates a list of vertices that specify a primitive initiated by glBegin.
 
+void CommitStrokeToStamps(int C){
+	if(C<0 || Strokes.empty()) return;
+
+	Stamp firstStamp;
+	Stroke sk1 = Strokes.front();
+	Strokes.pop_front();
+	firstStamp.copyStroke(sk1);
+	Stamps.push(firstStamp);
+
+	int i=0;
+
+	while (i<C && !Strokes.empty())
+	{
+		//next pt
+		Stroke sk2 = Strokes.front();
+		//calculate point delta
+		GLfloat delta = ptDistance(sk1.x, sk1.y,sk2.x, sk2.y);
+
+		if(delta <=StampDelta){
+			int j = 1;//jump
+			//advance a min distance
+			GLfloat halfway = StampDelta*.65;
+			while(delta<halfway && i<C && !Strokes.empty()){
+				j++;
+				Strokes.pop_front();
+				sk2 = Strokes.front();
+				delta = ptDistance(sk1.x, sk1.y,sk2.x, sk2.y);
+			}
+			i=i+j;
+			sk1 = sk2;
+			Stamp newStamp; newStamp.copyStroke(sk1);
+			Stamps.push(newStamp);
+			Strokes.pop_front();
+		}
+		if(delta>StampDelta){
+			GLfloat x,y, dist = 0.0,
+				x1 = sk1.x,
+				y1 = sk1.y,
+				x2 = sk2.x,
+				y2 = sk2.y;
+			GLint col = strokeCol[i];
+			x=x1;y=y1;
+			int steps = ceil(delta/StampDelta);
+			int step = 0;
+			while(step++<steps){
+				x = x1 + step * StampDelta * (x2-x1) / delta;
+				y = y1 + step * StampDelta * (y2-y1) / delta;
+				Stamp newStamp; newStamp.copyStroke(sk1);
+				newStamp.x = x; newStamp.y = y;
+				Stamps.push(newStamp);
+				//dist+=StampDelta;
+			}
+			Stamp newStamp; newStamp.copyStroke(sk2);
+			sk1=sk2;
+			Strokes.pop_front();
+			newStamp.x = x; newStamp.y = y;
+			Stamps.push(newStamp);
+		}
+		i++;
+	}//while done
+
+	while (!Stamps.empty())
+	{
+		ishika::Splat thisSplat;
+		Stamp smp = Stamps.front();
+		//thisSplat.init(15, x, y, c, 0, 0, 5, 50, 100, 50);
+		thisSplat.init(smp.strokePx,smp.x, smp.y, smp.color, 0, 0, 50, smp.strokePx,100,50);
+		Stamps.pop();
+		Splats.push_back(thisSplat);
+	}
 }
-
-void regStrokePoint(int x, int y){
-	//std::cout<<x<<","<<y<<std::endl;
-	strokePt[strokePtIdx][0]=(float)(x-xmid)/RATIO;
-	strokePt[strokePtIdx][1]=(float)(ymid-y)/RATIO;
-	strokeCol[strokePtIdx] = Current::Color;
-	strokePtIdx=(strokePtIdx+1)%STROKE_PTS;
-
-	//ishika 
-	Stroke newStroke = Stroke( 
-		(float)(x-xmid)/RATIO,
-		(float)(ymid-y)/RATIO,
-		Current::Color,
-		Current::BrushPx,
-		Current::BrushType);
-}
-
 
 void strokeToStamps(){
 	int i=strokeEndIdx[strokeEITop-2];
@@ -119,18 +218,28 @@ void strokeToStamps(){
 		}
 		if(delta>StampDelta){
 			GLfloat x,y, dist = 0.0,
+				x0 = strokePt[i-1][X],
+				y0 = strokePt[i-1][Y],
 				x1 = strokePt[i][X],
 				y1 = strokePt[i][Y],
 				x2 = strokePt[i+1][X],
-				y2 = strokePt[i+1][Y];
+				y2 = strokePt[i+1][Y],
+				x3 = strokePt[i+2][X],
+				y3 = strokePt[i+2][Y];
 			GLint col = strokeCol[i];
 			x=x1;y=y1;
 			int steps = ceil(delta/StampDelta);
 			int step = 0;
+			//a0 = y0/ (x0 - x1)(x0 - x2);
+			//a1 = y1 / (x1 - x0)(x1 - x2);
+			//a2 = y2/ (x2 - x0)(x2 - x1);
 			while(step++<steps){
 				k++;
 				stampPt[k][X] = x = x1 + step * StampDelta * (x2-x1) / delta;
 				stampPt[k][Y] = y = y1 + step * StampDelta * (y2-y1) / delta;
+				/*= y0 *((x- x1)*(x- x2)) / ((x0 - x1)*(x0 - x2))
+				+ y1 *((x - x0)*(x - x2))/ ((x1 - x0)*(x1 - x2)) 
+				+ y2 *((x- x0)*(x- x1))/ ((x2 - x0)*(x2 - x1));*/
 				stampColr[k] = col;
 				//dist+=StampDelta;
 			}
@@ -148,12 +257,46 @@ void strokeToStamps(){
 	stampTopIdx = k+1;
 }
 
+
+void canvas()
+{
+	glBegin(GL_QUADS);//Denotes the beginning of a group of vertices that define one or more primitives.
+	glColor3f(1,1,1);
+	glVertex3f(Xmin,Ymin, .0);
+	glVertex3f(Xmin,Ymax, .0);
+	glVertex3f(Xmax,Ymax, .0);
+	glVertex3f(Xmax,Ymin, .0);
+	glEnd();	//Terminates a list of vertices that specify a primitive initiated by glBegin.
+
+}
+
+void regStrokePoint(int x, int y){
+	//std::cout<<x<<","<<y<<std::endl;
+	strokePt[strokePtIdx][0]=(float)(x-xmid)/RATIO;
+	strokePt[strokePtIdx][1]=(float)(ymid-y)/RATIO;
+	strokeCol[strokePtIdx] = Current::Color;
+	strokePtIdx=(strokePtIdx+1)%STROKE_PTS;
+
+	//ishika 
+	Stroke newStroke = Stroke( 
+		(float)(x-xmid)/RATIO,
+		(float)(ymid-y)/RATIO,
+		Current::Color,
+		Current::BrushPx,
+		Current::BrushType);
+	Strokes.push_back(newStroke);
+	Current::StrokePointCount++;
+}
+
 void regStrokeEndIdx(int button, int state, int x, int y){
 	if(button == GLUT_LEFT_BUTTON && state == GLUT_UP){
 		strokeEndIdx[strokeEITop++] = strokePtIdx;
 		strokeEndIdx[strokeEITop] = STROKE_CNT+1;
 
-		strokeToStamps();
+		//strokeToStamps();
+		CommitStrokeToStamps(Current::StrokePointCount);
+		Current::StrokePointCount = 0;
+		//
 		strokeEITop = 1; strokePtIdx=0;
 		lastStampedPt = strokePtIdx; 
 	}
@@ -334,6 +477,7 @@ void drawScene(void)
 	//drawStamps();
 	drawSplats();
 	WetMapUpdate();
+	//colorPicker();
 	glPopMatrix();//Pops the current matrix off the matrix stack.
 
 
@@ -416,16 +560,19 @@ void myKeyboardFunc( unsigned char key, int x, int y )
 	case '.':
 		bRotate = !bRotate;	
 		break;
-	case '>':
-		trans +=0.2;
+	case '+':
+		Current::BrushPx++;
 		break;
-	case '<':
-		trans -=0.2;
+	case '-':
+		Current::BrushPx--;
 		break;
 	case '0':
 		strokeEITop = 1; strokePtIdx=0; stampTopIdx = 0;
+		ishika::Splats.clear();
+		ishika::Strokes.clear();
 		break;
 
+	case '1': storeScreen();
 		//colors
 	case 'w': Current::Color = 0xffffff; break;//white
 	case 'k': Current::Color = 0x000000; break;//black

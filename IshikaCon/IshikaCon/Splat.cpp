@@ -12,6 +12,7 @@ namespace ishika{
 	};
 	const float alpha = 0.33;
 
+	
 	void Splat::init(GLint splatPx, GLfloat pos_x, GLfloat pos_y, GLint color, GLushort bias_x, GLushort bias_y, GLushort age, GLubyte roughness, GLubyte flow_pct, GLubyte opacity){
 		this->splatSize = splatPx*(1.0/RATIO);
 		//copy location co-ordinates			
@@ -55,19 +56,26 @@ namespace ishika{
 
 		float dx = (1-alpha)*bx;
 		float dy = (1-alpha)*by;
-		unsigned int u = getrand(1,r+1);
-		float U = u;
+		int u = getRandNZ(1,r+1,x[0]*RATIO,y[0]*RATIO);
+		float U;
 
 		GLfloat area0 = area();
 
 		for(int j=0;j<N;j++){
-			dx = (1-alpha)*bx + alpha * (1/U) * V[j][X];
-			dy = (1-alpha)*by + alpha * (1/U) * V[j][Y];
+			//U = (float)(getRandNZ(-r,r,x[j]*RATIO,y[j]*RATIO))/RATIO;
+			//u = getRandNZ(-r,r,x[j]*RATIO,y[j]*RATIO);
+			u = getRandNZ(-r,r);
+			U = ((float)u)/RATIO;
+			
+			dx = (1-alpha)*bx + alpha * (1/u) * V[j][X];
+			dy = (1-alpha)*by + alpha * (1/u) * V[j][Y];
 
-			u = getrand(-r,r);
+			//u = getrand(-r,r,x[j]*RATIO,y[j]*RATIO);
+			//U = (float)(getrand(-r,r,x[j]*RATIO,y[j]*RATIO))/RATIO;
 
-			GLfloat _x = x[j] + ((float)(f)/100)*dx + 0 + u/RATIO;
-			GLfloat _y = y[j] + ((float)(f)/100)*dy + 0 + u/RATIO;
+
+			GLfloat _x = x[j] + ((float)(f)/100)*dx + 0 + U;
+			GLfloat _y = y[j] + ((float)(f)/100)*dy + 0 + U;
 
 			int ix = _x*RATIO+xmid;
 			int iy = ymid-_y*RATIO;
