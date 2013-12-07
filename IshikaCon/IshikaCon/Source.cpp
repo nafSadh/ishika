@@ -6,53 +6,15 @@
 
 using namespace std;
 
+/** MINIMAL COMMENTS AS NAMES SUGGEST WHAT THEY ARE */
 
 //std::vector<unsigned char> rgbdata (4*WIDTH*HEIGHT);
 unsigned char rgbdata [4*WIDTH*HEIGHT];
 
 
-void colorPicker(int s=2){
-	glBegin(GL_TRIANGLES);//Denotes the beginning of a group of vertices that define one or more primitives.
-	glColor3f(1,1,1); 	glVertex3f( s, s, .9);//7
-	glColor3f(1,0,0); 	glVertex3f( s, 0, .9);//4
-	glColor3f(1,1,1); 	glVertex3f( 0, 0, .9);//C
-
-	glColor3f(1,1,0); 	glVertex3f( s,-s, .9);//6
-	glColor3f(1,0,1); 	glVertex3f( 0,-s, .9);//5
-	glColor3f(1,1,1); 	glVertex3f( 0, 0, .9);//C
-
-	glColor3f(0,0,0); 	glVertex3f(-s,-s, .9);//0
-	glColor3f(0,0,1); 	glVertex3f(-s, 0, .9);//1
-	glColor3f(1,1,1); 	glVertex3f( 0, 0, .9);//C
-
-	glColor3f(0,1,1); 	glVertex3f(-s, s, .9);//3
-	glColor3f(0,1,0); 	glVertex3f( 0, s, .9);//2
-	glColor3f(1,1,1); 	glVertex3f( 0, 0, .9);//C
-
-
-	glColor3f(1,0,0); 	glVertex3f( s, 0, .9);//4
-	glColor3f(1,1,0); 	glVertex3f( s,-s, .9);//6
-	glColor3f(1,1,1); 	glVertex3f( 0, 0, .9);//C
-
-	glColor3f(1,0,1); 	glVertex3f( 0,-s, .9);//5
-	glColor3f(0,0,0); 	glVertex3f(-s,-s, .9);//0
-	glColor3f(1,1,1); 	glVertex3f( 0, 0, .9);//C
-
-	glColor3f(0,0,1); 	glVertex3f(-s, 0, .9);//1
-	glColor3f(0,1,1); 	glVertex3f(-s, s, .9);//3
-	glColor3f(1,1,1); 	glVertex3f( 0, 0, .9);//C
-
-	glColor3f(0,1,0); 	glVertex3f( 0, s, .9);//2
-	glColor3f(1,1,1); 	glVertex3f( s, s, .9);//7
-	glColor3f(1,1,1); 	glVertex3f( 0, 0, .9);//C
-
-
-	glEnd();
-}
-
-
 namespace ishika{ 
 
+	/* current config, can be changed by user, keystroke inputs in myKeyboardFunc 	*/
 	namespace Current{
 		GLint BrushPx = 37;
 		ishika::BrushType BrushType = BrushType::WetOnWet;
@@ -68,7 +30,7 @@ namespace ishika{
 }
 using namespace ishika;
 
-
+/* a single points */
 void drawPoint(GLfloat x, GLfloat y, GLfloat red=0.5f, GLfloat green=0.5f, GLfloat blue=0.5f, GLfloat pointSize=1.0f, GLfloat z=.0001){
 	glPointSize(pointSize);
 	glBegin(GL_POINTS);
@@ -76,8 +38,8 @@ void drawPoint(GLfloat x, GLfloat y, GLfloat red=0.5f, GLfloat green=0.5f, GLflo
 	glVertex3f(x,y,z);
 	glEnd();
 }
-int x_1,x_2,y_1,y_2;
 
+/* draws the wetmap hint */
 void DrawWetMap(){
 	for(int x=0;x<WIDTH;x++){
 		for(int y=0;y<HEIGHT;y++){
@@ -92,14 +54,16 @@ void DrawWetMap(){
 		}
 	}
 }
+
+/* update WetMap at each time step, Capilary Water movement as well*/
 void UpdateWetMap(){
 	for(int x=0;x<WIDTH;x++){
 		for(int y=0;y<HEIGHT;y++){
 			int wet = WetMap[x][y];
 			if(wet>0){
-				WetMap[x][y]=wet-1;
+				WetMap[x][y]=wet-1; // decrement wetness at each t.s.
 			}
-			if(x>0 && y>0 && x+1<WIDTH && y+1<HEIGHT){
+			if(x>0 && y>0 && x+1<WIDTH && y+1<HEIGHT){ /* Capilary Water movement */
 				if(WetMap[x][y]<7){
 					int wetNbor = 0;
 					if(WetMap[x][y+1]>7) wetNbor++;
@@ -117,6 +81,8 @@ void UpdateWetMap(){
 		}
 	}
 }
+
+/*Converts a stamp to one or more splats, depending on brush type */
 void stamp2splat(Stamp smp){
 	GLfloat x = smp.x;
 	GLfloat y = smp.y;	
@@ -243,7 +209,7 @@ void stamp2splat(Stamp smp){
 		}kx++;ky=-kyLim;
 	}
 }
-
+/* after a stroke is drawn, stroke points are converted */
 void CommitStrokeToStamps(int C){
 	if(C<0 || Strokes.empty()) return;
 
@@ -315,6 +281,7 @@ void CommitStrokeToStamps(int C){
 	}
 }
 
+/* store the screen */
 void storeScreen(){
 	glReadPixels(0, 0, WIDTH, HEIGHT,GL_RGBA,GL_UNSIGNED_BYTE, &rgbdata); 
 	int save_result = SOIL_save_image(
@@ -383,6 +350,8 @@ GLfloat knotVector [8] = {0.0,0.0,0.0,0.0, 1.0,1.0,1.0,1.0,};
 GLfloat cntrlPnts [4][3];
 GLUnurbsObj *cbz = gluNewNurbsRenderer();
 
+// static vars to used to calcualte bias, using next and prev points position
+int x_1,x_2,y_1,y_2;
 void regStrokePoint(int x, int y){
 	//std::cout<<x<<","<<y<<std::endl;
 	Stroke newStroke = Stroke( 

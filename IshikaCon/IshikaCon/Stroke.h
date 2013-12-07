@@ -6,6 +6,7 @@
 #include "Util.h"
 
 namespace ishika {
+	//represents a stroke point
 	class Stroke
 	{
 	public:
@@ -21,9 +22,14 @@ namespace ishika {
 		void init(GLfloat x, GLfloat y, GLint color, GLuint strokePx=5, BrushType brush=BrushType::Simple);
 	};
 
+	//represents a stamp
+	// it is basically same in structure as Stroke, but conceptually it is the stamp, 
+	// stamp is computed from input stroke points to place them in uniform density in the input stroke trajectory
+	// stamps are converted to a set of splats, based on brush types
 	class  Stamp : public Stroke
 	{
 		public:
+			//copies from a stroke to populated this stamp object
 			void copyStroke(Stroke stroke);
 		private:
 
