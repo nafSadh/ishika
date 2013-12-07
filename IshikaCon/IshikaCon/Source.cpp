@@ -220,7 +220,7 @@ void CommitStrokeToStamps(int C){
 	Stamps.push(firstStamp);
 	//GLfloat StampDelta =  (GLfloat) sk1.strokePx * STAMPDELTA;
 	GLfloat StampDelta =  STAMPDELTA * Current::BrushPx *0.075;
-	cout<<StampDelta;
+	//cout<<StampDelta;
 	int i=0;
 
 	while (i<C && !Strokes.empty())
@@ -559,7 +559,7 @@ void resizeWindow(int w, int h)
 #define CTRL -96+
 void myKeyboardFunc( unsigned char key, int x, int y )
 {
-	cout<<(int)key;
+	//cout<<(int)key;
 	switch ( key ) 
 	{
 	case 27: exit(1);
