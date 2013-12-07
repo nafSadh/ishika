@@ -17,7 +17,7 @@
 #define STAMPS 15000
 #define SPLATS 15000
 
-#define StampDelta 0.01
+#define STAMPDELTA 0.01
 #define SplatDelta 0.05
 #define SplatSize 5
 

@@ -10,10 +10,10 @@ namespace ishika{
 	{ 0, 1},//6
 	{ 1, 1}//7
 	};
-	const float alpha = 0.15;
+	const float alpha = 0.33;
 
 	
-	void Splat::init(GLint splatPx, GLfloat pos_x, GLfloat pos_y, GLint color, GLushort bias_x, GLushort bias_y, GLushort age, GLubyte roughness, GLubyte flow_pct, GLubyte opacity){
+	void Splat::init(GLint splatPx, GLfloat pos_x, GLfloat pos_y, GLint color, GLshort bias_x, GLshort bias_y, GLushort age, GLubyte roughness, GLubyte flow_pct, GLubyte opacity){
 		this->splatSize = splatPx*(1.0/RATIO);
 		//copy location co-ordinates			
 		x[0] = pos_x+splatSize/2;
@@ -44,7 +44,7 @@ namespace ishika{
 		//params
 		this->bx = bias_x;
 		this->by = bias_y;
-		this->a = age;
+		this->a = age*2;
 		this->r = roughness;
 		this->f = flow_pct;
 		this->o = opacity;
@@ -54,7 +54,7 @@ namespace ishika{
 		a--;
 		if(a<-2400) return;
 		if(a==0) zeroout();
-		if(a<0 && a>-2400 && rand()%3==1) rewet(wetmap); 
+		if(a<0 && a>-2400 && rand()%7==3) { rewet(wetmap);  /*std::cout<<"rw ";*/ }
 		if(a<0) return;
 
 		float dx = (1-alpha)*bx;
@@ -122,7 +122,7 @@ namespace ishika{
 	}
 
 	void Splat::draw(int i){
-		GLfloat opacity = 0.01 *.5* o;
+		GLfloat opacity = 0.01 *.35* o;
 		glColor4f((GLfloat)(color/0x010000)/256,
 			(GLfloat)((color/0x000100)%0x100)/256,
 			(GLfloat)(color%0x100)/256,

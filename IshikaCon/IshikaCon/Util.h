@@ -13,7 +13,8 @@ namespace ishika{
 		WetOnDry,
 		WetOnWet,
 		Blobby,
-		Crunchy
+		Crunchy,
+		Blobby2
 	};
 }
 

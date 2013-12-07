@@ -30,7 +30,7 @@ namespace ishika{
 		/**
 		<param></param>
 		*/
-		void init(GLint splatPx, GLfloat pos_x, GLfloat pos_y, GLint color, GLushort bias_x, GLushort bias_y, GLushort age, GLubyte roughness, GLubyte flow_pct, GLubyte opacity);
+		void init(GLint splatPx, GLfloat pos_x, GLfloat pos_y, GLint color, GLshort bias_x, GLshort bias_y, GLushort age, GLubyte roughness, GLubyte flow_pct, GLubyte opacity);
 
 		void advect(const GLushort wetmap[][HEIGHT]);
 		void draw(int i);

@@ -54,8 +54,8 @@ void colorPicker(int s=2){
 namespace ishika{ 
 
 	namespace Current{
-		GLint BrushPx = 25;
-		ishika::BrushType BrushType = BrushType::Simple;
+		GLint BrushPx = 37;
+		ishika::BrushType BrushType = BrushType::WetOnWet;
 		GLint Color = 0x0077cc;
 		int StrokePointCount = 0;
 	}
@@ -92,7 +92,7 @@ void DrawWetMap(){
 		}
 	}
 }
-void WetMapUpdate(){
+void UpdateWetMap(){
 	for(int x=0;x<WIDTH;x++){
 		for(int y=0;y<HEIGHT;y++){
 			int wet = WetMap[x][y];
@@ -117,7 +117,6 @@ void WetMapUpdate(){
 		}
 	}
 }
-
 void stamp2splat(Stamp smp){
 	GLfloat x = smp.x;
 	GLfloat y = smp.y;	
@@ -146,23 +145,23 @@ void stamp2splat(Stamp smp){
 		{
 			int r = 2;
 			int f = 100;
-			float sz = ((double)smp.strokePx)/RATIO/2;
+			float sz = (((double)smp.strokePx)/RATIO)*.5;
 			ishika::Splat centerSplat;
-			centerSplat.init(smp.strokePx/2, smp.x, smp.y, smp.color, 0, 0, 30,  r,f,50);
+			centerSplat.init((smp.strokePx)/2, smp.x, smp.y, smp.color, 0, 0, 30,  r,f,50);
 			Splats.push_back(centerSplat);
 
 			ishika::Splat xSplat[6];
-			xSplat[0].init(smp.strokePx/2, smp.x	 ,	smp.y+sz*.5,	smp.color, 0, 0, 30, r,f,	50);
-			xSplat[1].init(smp.strokePx/2, smp.x	 ,	smp.y-sz*.5,	smp.color, 0, 0, 30, r,f,	50);
-			xSplat[2].init(smp.strokePx/2, smp.x+sz*.5,	smp.y+sz*.3,	smp.color, 0, 0, 30, r,f,	50);
-			xSplat[3].init(smp.strokePx/2, smp.x-sz*.5,	smp.y-sz*.3,	smp.color, 0, 0, 30, r,f,	50);
-			xSplat[4].init(smp.strokePx/2, smp.x+sz*.5,	smp.y-sz*.3,	smp.color, 0, 0, 30, r,f,	50);
-			xSplat[5].init(smp.strokePx/2, smp.x-sz*.5,	smp.y+sz*.3,	smp.color, 0, 0, 30, r,f,	50);
+			xSplat[0].init(smp.strokePx/2, smp.x	 ,	smp.y+sz*.4,	smp.color,  0, 1, 30, r,f,	25);
+			xSplat[1].init(smp.strokePx/2, smp.x	 ,	smp.y-sz*.4,	smp.color,  0,-1, 30, r,f,	25);
+			xSplat[2].init(smp.strokePx/2, smp.x+sz*.4,	smp.y+sz*.3,	smp.color,  1, 1, 30, r,f,	25);
+			xSplat[3].init(smp.strokePx/2, smp.x-sz*.4,	smp.y-sz*.3,	smp.color, -1,-1, 30, r,f,	25);
+			xSplat[4].init(smp.strokePx/2, smp.x+sz*.4,	smp.y-sz*.3,	smp.color,  1,-1, 30, r,f,	25);
+			xSplat[5].init(smp.strokePx/2, smp.x-sz*.4,	smp.y+sz*.3,	smp.color, -1, 1, 30, r,f,	25);
 			for(int ixs=0;ixs<6;ixs++){
 				Splats.push_back(xSplat[ixs]);
 			}
-			WRR = -.5;
-			wetLife = 35;
+			WRR = -.30;
+			wetLife = 25;
 		}
 		break;
 
@@ -171,14 +170,63 @@ void stamp2splat(Stamp smp){
 			int r = 5;
 			int f = 100;
 			ishika::Splat centerSplat;
-			centerSplat.init(smp.strokePx/2, smp.x, smp.y, smp.color, 0, 0, 19, r, f, 65);
+			centerSplat.init(smp.strokePx/2, smp.x, smp.y, smp.color, 0, 0, 19, r, f, 25);
 
 			ishika::Splat periSplat;
-			periSplat.init(3*smp.strokePx/2, smp.x,	smp.y, smp.color, 0, 0, 19, r, f, 15);
+			periSplat.init((3*smp.strokePx)/2, smp.x,	smp.y, smp.color, 0, 0, 19, r, f, 11);
 			Splats.push_back(periSplat);
 			Splats.push_back(centerSplat);
-			WRR = -1;
-			wetLife = 25;
+			WRR = -.85;
+			wetLife = 35;
+		}
+		break;
+	case BrushType::Blobby:
+		{
+			int r = 1;
+			int f = 100;
+			smp.strokePx=1.75*smp.strokePx;
+			float sz = (((double)smp.strokePx)/RATIO)*.55;
+
+			ishika::Splat xSplat[4];
+			xSplat[0].init(smp.strokePx/2, smp.x,		smp.y+sz*.5, smp.color, 0, 0, 15, r,f,	15);
+			xSplat[1].init(smp.strokePx/4, smp.x,		smp.y-sz*.4, smp.color, 0, 0, 15, r,f,	15);
+			xSplat[2].init(smp.strokePx/3, smp.x+sz*.4,	smp.y,		 smp.color, 0, 0, 15, r,f,	10);
+			xSplat[3].init(smp.strokePx/5, smp.x-sz*.5,	smp.y,		 smp.color, 0, 0, 15, r,f,	11);
+			for(int ixs=0;ixs<4;ixs++){
+				Splats.push_back(xSplat[ixs]);
+			}
+			WRR = -.25;
+			wetLife = 11;
+		}
+		break;
+	case BrushType::Crunchy:
+		{
+			int r = 10;
+			int f = 25;
+			ishika::Splat centerSplat;
+			centerSplat.init(smp.strokePx, smp.x, smp.y, smp.color, 0, 0, 19, r, f, 65);
+			Splats.push_back(centerSplat);
+			WRR = -.5;
+			wetLife = 35;
+		}
+		break;
+	case BrushType::Blobby2:
+		{
+			int r = 1;
+			int f = 100;
+			smp.strokePx=1.5*smp.strokePx;
+			float sz = (((double)smp.strokePx)/RATIO)*.85;
+
+			ishika::Splat xSplat[4];
+			xSplat[0].init(smp.strokePx/2, smp.x,		smp.y+sz*.5, smp.color, 0, 0, 15, r,f,	15);
+			xSplat[1].init(smp.strokePx/4, smp.x,		smp.y-sz*.4, smp.color, 0, 0, 15, r,f,	15);
+			xSplat[2].init(smp.strokePx/3, smp.x+sz*.4,	smp.y,		 smp.color, 0, 0, 15, r,f,	10);
+			xSplat[3].init(smp.strokePx/5, smp.x-sz*.5,	smp.y,		 smp.color, 0, 0, 15, r,f,	11);
+			for(int ixs=0;ixs<4;ixs++){
+				Splats.push_back(xSplat[ixs]);
+			}
+			WRR = -.35;
+			wetLife = 7;
 		}
 		break;
 	}
@@ -204,7 +252,9 @@ void CommitStrokeToStamps(int C){
 	Strokes.pop_front();
 	firstStamp.copyStroke(sk1);
 	Stamps.push(firstStamp);
-
+	//GLfloat StampDelta =  (GLfloat) sk1.strokePx * STAMPDELTA;
+	GLfloat StampDelta =  STAMPDELTA * Current::BrushPx *0.075;
+	cout<<StampDelta;
 	int i=0;
 
 	while (i<C && !Strokes.empty())
@@ -226,9 +276,10 @@ void CommitStrokeToStamps(int C){
 			}
 			i=i+j;
 			sk1 = sk2;
+			//StampDelta = sk1.strokePx * STAMPDELTA;
 			Stamp newStamp; newStamp.copyStroke(sk1);
 			Stamps.push(newStamp);
-			Strokes.pop_front();
+			if(!Strokes.empty())Strokes.pop_front();
 		}
 		if(delta>StampDelta){
 			GLfloat x,y, dist = 0.0,
@@ -267,7 +318,7 @@ void CommitStrokeToStamps(int C){
 void storeScreen(){
 	glReadPixels(0, 0, WIDTH, HEIGHT,GL_RGBA,GL_UNSIGNED_BYTE, &rgbdata); 
 	int save_result = SOIL_save_image(
-		"image_patch1.tga",
+		"image_patch.tga",
 		SOIL_SAVE_TYPE_TGA,
 		WIDTH, HEIGHT, 4,
 		//rgbdata.data()
@@ -292,7 +343,7 @@ void dryOut(){
 	vector<Splat> tempSplat;
 	swap(Splats,tempSplat);
 	for(vector<Splat>::iterator splatIt = tempSplat.begin(); splatIt!=tempSplat.end(); ++splatIt){
-		if((*splatIt).age()>0){
+		if((*splatIt).age()>-2400){
 			Splats.push_back(*splatIt);
 		}
 	}
@@ -410,9 +461,9 @@ void drawSplats(){
 	frewla++;
 	for(vector<Splat>::iterator splatIt = Splats.begin(); splatIt!=Splats.end(); ++splatIt, i++){
 		(*splatIt).draw(i);
-		if(frewla%15==0){(*splatIt).advect(WetMap);}
+		if(frewla%25==0){(*splatIt).advect(WetMap);}
 	}
-	if(frewla%15==0)WetMapUpdate();
+	if(frewla%15==0)UpdateWetMap();
 	DrawWetMap();
 	//if(frewla%500==0)dryOut();
 	frewla++;
@@ -564,6 +615,7 @@ void myKeyboardFunc( unsigned char key, int x, int y )
 	case '3': ishika::Current::BrushType = BrushType::WetOnWet; break;
 	case '4': ishika::Current::BrushType = BrushType::Blobby; break;
 	case '5': ishika::Current::BrushType = BrushType::Crunchy; break;
+	case '6': ishika::Current::BrushType = BrushType::Blobby2; break;
 
 	case (CTRL's'): storeScreen();//ctrl+s
 		//colors
